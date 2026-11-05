@@ -2,7 +2,7 @@
 
 For installation without building from source, follow the [full installation tutorial](../docs/INSTALLATION.md).
 
-App de barra de menú para Apple Silicon y macOS 14+, con Parakeet v3 mediante FluidAudio/CoreML. La extensión puede usar Whisper sin esta app.
+App de barra de menú para Apple Silicon y macOS 14+, con Parakeet v3 mediante FluidAudio/CoreML. Transcribe notas de voz de WhatsApp Web y X DMs. La extensión puede usar Whisper sin esta app.
 
 ## Compilar
 
@@ -27,7 +27,7 @@ La primera ejecución descarga el modelo desde Hugging Face. AVFoundation decodi
 
 El servidor escucha en `127.0.0.1:8765`.
 
-- `GET /health`: estado, versión `0.1.0`, modelo y estadísticas.
+- `GET /health`: estado, versión `0.2.0`, modelo y estadísticas.
 - `GET /v1/settings`, `POST /v1/settings`: ajustes compartidos.
 - `POST /v1/hello`: presencia de la extensión.
 - `POST /v1/jobs`: estadísticas de transcripción, sin el texto.

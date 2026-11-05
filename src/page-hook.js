@@ -1,5 +1,114 @@
 /* MAIN world. Capture WA-decrypted audio without the user pressing Play. */
 (function () {
+  // Temporary probe for the missing X button. content.js removes this once it paints.
+  function onXDocument() {
+    const host = String((location && location.hostname) || "");
+    if (/(^|\.)x\.com$|(^|\.)twitter\.com$/i.test(host)) return true;
+    let origin = "";
+    let protocol = "";
+    try {
+      origin = String(location.origin || "");
+      protocol = String(location.protocol || "");
+    } catch (_) {}
+    if (/^https:\/\/([^/]+\.)?(x\.com|twitter\.com)(:\d+)?$/i.test(origin)) return true;
+    return protocol === "blob:" || protocol === "about:" || protocol === "data:";
+  }
+
+  function deepQuery(selector) {
+    const seen = new Set();
+    const stack = [document];
+    while (stack.length) {
+      const root = stack.pop();
+      if (!root || seen.has(root)) continue;
+      seen.add(root);
+      if (typeof root.querySelector === "function") {
+        let hit = null;
+        try {
+          hit = root.querySelector(selector);
+        } catch (_) {
+          hit = null;
+        }
+        if (hit) return hit;
+      }
+      if (typeof root.querySelectorAll !== "function") continue;
+      let all = [];
+      try {
+        all = root.querySelectorAll("*");
+      } catch (_) {
+        all = [];
+      }
+      for (const el of all) {
+        if (el && el.shadowRoot) stack.push(el.shadowRoot);
+      }
+    }
+    return null;
+  }
+
+  function deepAll(selector) {
+    const out = [];
+    const seen = new Set();
+    const stack = [document];
+    while (stack.length) {
+      const root = stack.pop();
+      if (!root || seen.has(root) || typeof root.querySelectorAll !== "function") continue;
+      seen.add(root);
+      try {
+        root.querySelectorAll(selector).forEach((el) => out.push(el));
+      } catch (_) {
+        /* this root rejects the selector */
+      }
+      let all = [];
+      try {
+        all = root.querySelectorAll("*");
+      } catch (_) {
+        all = [];
+      }
+      for (const el of all) {
+        if (el && el.shadowRoot) stack.push(el.shadowRoot);
+      }
+    }
+    return out;
+  }
+
+  function paintMainMark() {
+    return;
+    if (!onXDocument()) return;
+    const paint = () => {
+      if (!document.documentElement) return false;
+      if (document.getElementById("wa-t-x-debug")) {
+        const old = document.getElementById("wa-t-x-debug-main");
+        if (old) old.remove();
+        return true;
+      }
+      if (window.innerWidth < 80 || window.innerHeight < 80) return false;
+      let el = document.getElementById("wa-t-x-debug-main");
+      if (!el) {
+        el = document.createElement("div");
+        el.id = "wa-t-x-debug-main";
+        el.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#ffe14a;color:#111;font:600 13px/1.35 ui-monospace,Menlo,monospace;padding:8px 12px;pointer-events:none;text-align:left;white-space:pre-wrap";
+        document.documentElement.appendChild(el);
+      }
+      const frame = window === window.top ? "top" : "iframe";
+      let path = location.pathname || "/";
+      if (path.length > 48) path = path.slice(0, 48) + "…";
+      el.textContent = "wa-t MAIN 0.1.40 · " + frame + " · " + path + "\nsi esta barra queda, el script de la UI no arrancó en este marco";
+      return false;
+    };
+    try {
+      console.log("[wa-transcribe]", "main", window === window.top ? "top" : "iframe", location.href);
+      paint();
+      let n = 0;
+      const timer = setInterval(() => {
+        n += 1;
+        let done = false;
+        try { done = paint(); } catch (_) { done = true; }
+        if (done || n > 30) clearInterval(timer);
+      }, 1000);
+    } catch (_) {}
+  }
+  paintMainMark();
+
+  function bootHook() {
   const LOG = "[wa-transcribe]";
   const SOURCE = "wa-local-transcribe";
   const MIN_BYTES = 200;
@@ -374,7 +483,18 @@
   }
 
   function isOurUi(el) {
-    return !!(el && el.closest && el.closest(".wa-t-wrap, .wa-t-aside, .wa-t-btn, .wa-t-tools, .wa-t-copy, .wa-t-save"));
+    return !!(el && el.closest && el.closest(".wa-t-wrap, .wa-t-aside, .wa-t-foot, .wa-t-x-tools, .wa-t-btn, .wa-t-tools, .wa-t-copy, .wa-t-save"));
+  }
+
+  function onXHost() {
+    return onXDocument();
+  }
+
+  function inXComposer(el) {
+    if (!onXHost() || !el || !el.closest) return false;
+    return !!el.closest(
+      '[data-testid="dm-composer-form"], [data-testid="dm-composer-container"], [data-testid="voiceMessageButton"]'
+    );
   }
 
   function isSpeedControl(el) {
@@ -480,6 +600,15 @@
 
   function messageRow(root) {
     if (!root || !root.closest) return root;
+    // X lists use role=row on the whole thread. Stay on the message bubble.
+    if (onXHost()) {
+      let n = root;
+      for (let i = 0; i < 18 && n && n !== document.body; i++) {
+        const id = (n.getAttribute && n.getAttribute("data-testid")) || "";
+        if (id === "messageEntry" || (/^message-/.test(id) && !/^message-text-/.test(id))) return n;
+        n = n.parentElement;
+      }
+    }
     const row = root.closest('[data-id], [data-testid="msg-container"], [role="row"]');
     if (row && row !== document.body && row !== document.documentElement) return row;
     return messageScope(root);
@@ -559,12 +688,29 @@
   }
 
   function findPlay(root) {
-    if (!root) return null;
+    if (!root || inXComposer(root)) return null;
     const scope = bubbleScope(root) || messageRow(root) || root;
+    if (inXComposer(scope)) return null;
+    if (onXHost() && scope.querySelector) {
+      let named = null;
+      try {
+        named = scope.querySelector(
+          'button[aria-label="Play" i], button[aria-label="Pause" i], button[aria-label="Reproducir" i], button[aria-label="Pausar" i], [data-icon="icon-play"], [data-icon="icon-pause"]'
+        );
+      } catch (_) {
+        named = null;
+      }
+      if (named) {
+        const btn = named.closest ? named.closest("button, [role='button']") || named : named;
+        if (!inXComposer(btn)) return btn;
+      }
+    }
     const transport = findTransport(scope);
-    if (transport) return transport;
     const origin = (root.querySelector && root.querySelector(".wa-t-wrap")) || root;
-    return pickControl(origin, collectPlayTargets(scope)) || pickControl(origin, iconControls(scope));
+    const picked =
+      transport || pickControl(origin, collectPlayTargets(scope)) || pickControl(origin, iconControls(scope));
+    if (inXComposer(picked)) return null;
+    return picked;
   }
 
   function usableSrc(audio) {
@@ -769,9 +915,36 @@
     });
   }
 
+  function extractRoot(node) {
+    const rowId = node && node.dataset && node.dataset.xRow;
+    if (rowId) {
+      let row = null;
+      try {
+        row = deepQuery(`[data-dm-message-row="${CSS.escape(rowId)}"]`);
+      } catch (_) {
+        row = null;
+      }
+      if (!row) {
+        try {
+          row = deepQuery(`[data-testid="${CSS.escape(rowId)}"]`);
+        } catch (_) {
+          row = null;
+        }
+      }
+      // The foot and the hidden wrap sit on #wa-t-x-layer. That parent is not the note.
+      return row;
+    }
+    return node ? node.parentElement || node : null;
+  }
+
+  function markerNode(marker) {
+    if (!marker) return null;
+    return deepQuery(`[data-wa-t-id="${CSS.escape(marker)}"]`);
+  }
+
   async function extract(marker) {
-    const wrap = document.querySelector(`.wa-t-wrap[data-wa-t-id="${marker}"]`);
-    const root = wrap ? wrap.parentElement : document.querySelector(`[data-wa-t-id="${marker}"]`);
+    const marked = markerNode(marker);
+    const root = marked && extractRoot(marked);
     if (!root) {
       log("extract: no root for", marker);
       throw new Error("NO_AUDIO");
@@ -874,9 +1047,9 @@
   }
 
   function playingMarker() {
-    const wraps = document.querySelectorAll(".wa-t-wrap");
+    const wraps = deepAll(".wa-t-wrap");
     for (const wrap of wraps) {
-      const root = wrap.parentElement || wrap;
+      const root = (wrap.dataset && wrap.dataset.xRow && extractRoot(wrap)) || wrap.parentElement || wrap;
       const play = findPlay(root);
       if (play && controlShowsPause(play)) return wrap.dataset.waTId || "";
     }
@@ -923,7 +1096,25 @@
   function seekSlider(root, seconds, duration) {
     if (!root || !root.querySelector || !(duration > 0.2) || seconds > duration + 0.25) return;
     const slider = root.querySelector('[role="slider"], input[type="range"]');
-    if (!slider || isOurUi(slider)) return;
+    if (!slider || isOurUi(slider)) {
+      if (!onXHost()) return;
+      const wave = root.querySelector('[data-testid="audio-waveform"]');
+      if (!wave || isOurUi(wave)) return;
+      const frac = Math.min(0.995, Math.max(0.004, seconds / duration));
+      const rect = wave.getBoundingClientRect();
+      if (rect.width < 8 || rect.height < 2) return;
+      const x = rect.left + frac * rect.width;
+      const y = rect.top + rect.height / 2;
+      pressAt(wave, x, y);
+      let inner = null;
+      try {
+        inner = document.elementFromPoint(x, y);
+      } catch (_) {
+        inner = null;
+      }
+      if (inner && inner !== wave && wave.contains(inner) && !isOurUi(inner)) pressAt(inner, x, y);
+      return;
+    }
     const frac = Math.min(0.995, Math.max(0.004, seconds / duration));
     if (String(slider.tagName).toUpperCase() === "INPUT") {
       const min = Number(slider.min) || 0;
@@ -1032,9 +1223,10 @@
   async function seekNote(marker, time) {
     const seconds = Number(time);
     if (!marker || !(seconds >= 0)) return;
-    const wrap = document.querySelector(`.wa-t-wrap[data-wa-t-id="${marker}"]`);
-    if (!wrap) return;
-    const root = wrap.parentElement || wrap;
+    const marked = markerNode(marker);
+    if (!marked) return;
+    const root = extractRoot(marked);
+    if (!root) return;
     const play = findPlay(root);
     const already = thisNotePlaying(root, play, marker);
     if (!already && play) {
@@ -1097,4 +1289,45 @@
 
   document.documentElement.setAttribute("data-wa-t-hook", "1");
   log("page hook ready");
+  }
+
+  function onXHost() {
+    return onXDocument();
+  }
+
+  function onChatPath() {
+    return /^\/(i\/chat|messages|chat)(\/|$)/.test(String((location && location.pathname) || ""));
+  }
+
+  function chatDom() {
+    if (!document.querySelector) return false;
+    return !!deepQuery(
+      "[data-dm-message-row], [data-testid='audio-waveform'], [data-testid='dm-message-list'], [data-testid='dm-container']"
+    );
+  }
+
+  // WhatsApp and an X messages URL hook immediately. A chat panel on another
+  // x.com page waits until the voice list exists, so the home timeline is left alone.
+  if (!onXHost() || onChatPath()) {
+    bootHook();
+  } else {
+    let obs = null;
+    const kick = () => {
+      if (document.documentElement && document.documentElement.getAttribute("data-wa-t-hook")) {
+        if (obs) obs.disconnect();
+        return;
+      }
+      if (!chatDom()) return;
+      if (obs) obs.disconnect();
+      bootHook();
+    };
+    const watch = () => {
+      kick();
+      if (document.documentElement && document.documentElement.getAttribute("data-wa-t-hook")) return;
+      obs = new MutationObserver(kick);
+      obs.observe(document.documentElement, { childList: true, subtree: true });
+    };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watch, { once: true });
+    else watch();
+  }
 })();

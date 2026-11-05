@@ -156,6 +156,87 @@
   z-index: 5;
 }
 
+/* Outside React's message tree, beside the audio pill in every state. */
+.wa-t-x-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.wa-t-x-layer .wa-t-foot.wa-t-x-tools {
+  position: fixed;
+  transform: none;
+  right: auto;
+  margin: 0;
+  pointer-events: auto;
+}
+
+.wa-t-foot.wa-t-x-tools.is-docked {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  width: auto;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.wa-t-foot.wa-t-x-tools {
+  z-index: 2;
+  opacity: 1;
+  width: auto;
+  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.wa-t-x-tools .wa-t-actions {
+  flex-direction: row;
+  gap: 2px;
+}
+
+.wa-t-x-tools .wa-t-save {
+  display: none !important;
+}
+
+.wa-t-x-tools .wa-t-btn,
+.wa-t-x-tools .wa-t-copy {
+  background: transparent;
+  color: #e7e9ea;
+  border: 0;
+  box-shadow: none;
+  opacity: 0.85;
+}
+
+.wa-t-x-tools .wa-t-btn:hover:not(:disabled),
+.wa-t-x-tools .wa-t-copy:hover {
+  background: transparent;
+  border: 0;
+  opacity: 1;
+}
+
+.wa-t-wrap[data-site="x"] .wa-t-tools {
+  display: none !important;
+}
+
+.wa-t-wrap[data-site="x"] {
+  position: relative;
+  z-index: 1;
+  flex: 1 0 100%;
+  width: 100%;
+  max-width: min(460px, 100%);
+  margin-top: 6px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: #2f3336;
+  color: #e7e9ea;
+  box-shadow: none;
+  pointer-events: auto;
+}
+
 .wa-t-btn[hidden],
 .wa-t-actions[hidden],
 .wa-t-copy[hidden],
@@ -164,7 +245,8 @@
 .wa-t-status[hidden],
 .wa-t-badge[hidden],
 .wa-t-wrap[hidden],
-.wa-t-aside[hidden] {
+.wa-t-aside[hidden],
+.wa-t-x-tools[hidden] {
   display: none !important;
 }
 

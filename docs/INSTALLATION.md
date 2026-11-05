@@ -1,6 +1,6 @@
-# Install TranscribeThem 0.1.0
+# Install TranscribeThem 0.2.0
 
-This guide takes you from downloading TranscribeThem to transcribing your first WhatsApp voice note. No developer tools, API keys, or paid transcription account are needed. The app interface currently uses Spanish; this guide includes the labels you will see.
+This guide takes you from downloading TranscribeThem to transcribing your first WhatsApp or X DM voice note. No developer tools, API keys, or paid transcription account are needed. The app interface currently uses Spanish; this guide includes the labels you will see.
 
 ## 1. Choose your setup and download
 
@@ -9,28 +9,28 @@ The **Chrome extension is required**. The **Mac app is optional**: it runs Parak
 Requirements:
 
 - Google Chrome 113 or later; use an up-to-date Chrome installation. WebGPU support depends on your hardware; CPU fallback is slower.
-- WhatsApp Web signed in in the same Chrome profile where you install the extension.
+- WhatsApp Web or X signed in in the same Chrome profile where you install the extension.
 - For the Mac app: macOS 14 or later and an Apple Silicon chip (M1 or newer). Check **Apple menu → About This Mac**. This DMG does not support Intel Macs, Windows, or Linux; use the extension without the app on those systems.
 - Internet access for the initial model download. Keep enough free disk space for model caches; larger models use more disk space and memory.
 
-Download from the [official v0.1.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.1.0):
+Download from the [official v0.2.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.2.0):
 
-- [Chrome extension ZIP](https://github.com/0xKoller/TranscribeThem/releases/download/v0.1.0/TranscribeThem-extension-0.1.0.zip)
-- [Mac app DMG](https://github.com/0xKoller/TranscribeThem/releases/download/v0.1.0/TranscribeThem-0.1.0.dmg)
-- [SHA-256 checksums](https://github.com/0xKoller/TranscribeThem/releases/download/v0.1.0/SHA256SUMS.txt) (optional verification)
+- [Chrome extension ZIP](https://github.com/0xKoller/TranscribeThem/releases/download/v0.2.0/TranscribeThem-extension-0.2.0.zip)
+- [Mac app DMG](https://github.com/0xKoller/TranscribeThem/releases/download/v0.2.0/TranscribeThem-0.2.0.dmg)
+- [SHA-256 checksums](https://github.com/0xKoller/TranscribeThem/releases/download/v0.2.0/SHA256SUMS.txt) (optional verification)
 
 Choose the named extension ZIP, **not GitHub's “Source code (zip)”**. The source archive needs a build step and is not ready to load in Chrome.
 
 ## 2. Install the Chrome extension
 
-1. Unzip `TranscribeThem-extension-0.1.0.zip`. On macOS, double-click it in Finder; on Windows, use **Extract All**.
+1. Unzip `TranscribeThem-extension-0.2.0.zip`. On macOS, double-click it in Finder; on Windows, use **Extract All**.
 2. Move the extracted folder somewhere permanent, such as a `Chrome Extensions` folder inside Documents. Chrome reads the extension from this folder, so keep it after installation.
 3. Open the extracted folder and check that it contains `manifest.json`, `src`, `icons`, and `vendor`. If there is another folder inside, use the inner folder that directly contains `manifest.json`.
 4. Open Chrome. Paste `chrome://extensions` into the address bar and press Enter.
 5. Turn on **Developer mode** in the top-right corner. Keep it enabled while using this unpacked extension.
 6. Click **Load unpacked** (Spanish Chrome: **Cargar descomprimida**).
 7. Select the folder that directly contains `manifest.json`, then confirm the selection.
-8. Check that a **TranscribeThem** card appears, its switch is enabled, and its version is **0.1.0**.
+8. Check that a **TranscribeThem** card appears, its switch is enabled, and its version is **0.2.0**.
 9. Click Chrome's puzzle-piece **Extensions** button, then pin TranscribeThem so its icon is easy to find.
 10. Open [WhatsApp Web](https://web.whatsapp.com), sign in if needed, and **reload the tab** if it was already open.
 
@@ -40,7 +40,7 @@ This follows Chrome's [official unpacked-extension installation flow](https://su
 
 Skip to section 4 if you are using only the extension.
 
-1. Open `TranscribeThem-0.1.0.dmg` in Finder.
+1. Open `TranscribeThem-0.2.0.dmg` in Finder.
 2. Drag **TranscribeThem.app** onto the **Applications** shortcut in the disk image.
 3. Wait for the copy to finish, then eject the TranscribeThem disk image from Finder's sidebar.
 4. Open **Finder → Applications → TranscribeThem**. Run the installed copy, not the copy inside the DMG.
@@ -75,7 +75,26 @@ Start the app from Applications the first time. The popup's **Abrir app** button
 
 The extension processes one transcription at a time. With the Mac app, its activity view records local timing and counts. Audio inference happens locally; the browser and app may still need network access for model downloads, and WhatsApp Web uses its normal connections.
 
+### Transcribe an X DM voice note
+
+1. Open [X Messages](https://x.com/i/chat) (`/i/chat` and `/messages` are supported) and reload the tab after installing or updating the extension.
+2. Open a conversation with a voice note and hover over the audio bubble.
+3. Click the transcription icon beside X's native reply, reaction, and download actions.
+4. Wait for the text below the audio. The transcription action becomes **Copiar** (Copy).
+5. Play the note to follow the highlighted words, or click a word to seek to that part of the audio.
+
+No message is sent automatically. The same local engines and language settings apply to WhatsApp and X.
+
 ## Troubleshooting
+
+### “Extension context invalidated”, “Recargar”, or a stale loading action after an update
+
+Reload the WhatsApp or X tab after reloading the extension at `chrome://extensions`. Reloading only the extension leaves old content scripts in existing tabs. Then retry transcription.
+
+### No transcription action in X
+
+Open a DM containing a voice note and hover over the audio to reveal its native action rail. Check that the extension is enabled, has access to X, and reload the tab. X layout changes may require an extension update.
+
 
 ### “Manifest file is missing or unreadable”
 
@@ -107,7 +126,7 @@ There is no automatic updater for this manually loaded extension.
 
 1. Download the named extension ZIP from the new release and extract it.
 2. Replace the contents of your existing permanent extension folder with the new package contents. Keep `manifest.json` at the folder root.
-3. Go to `chrome://extensions`, click **Reload** on the TranscribeThem card, and check the version. Reload WhatsApp Web too.
+3. Go to `chrome://extensions`, click **Reload** on the TranscribeThem card, and check the version. Reload all open WhatsApp Web and X tabs too.
 4. For the Mac app, quit TranscribeThem from its menu-bar menu, open the new DMG, and drag the new app into Applications, confirming replacement. Eject the DMG and reopen the installed app.
 
 Keeping the same extension folder avoids unnecessarily removing and reinstalling the extension, which can discard its settings and model cache.

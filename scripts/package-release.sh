@@ -29,8 +29,9 @@ Extensión
 2. En Chrome abrí chrome://extensions
 3. Activá Modo de desarrollador.
 4. Cargar descomprimida y elegí la carpeta que tiene manifest.json.
-5. Abrí https://web.whatsapp.com y recargá la pestaña.
-6. En una nota de voz, tocá Transcribir.
+5. Abrí https://web.whatsapp.com o https://x.com/i/chat y recargá la pestaña.
+6. En una nota de voz, tocá Transcribir. En X aparece al pasar el cursor junto a las acciones del audio.
+7. Después de actualizar la extensión, recargá también las pestañas de WhatsApp y X.
 
 App para Mac (Apple Silicon, macOS 14 o más nuevo)
 1. Abrí el DMG y arrastrá TranscribeThem a Aplicaciones.
@@ -52,6 +53,7 @@ cp -R "$DIR/icons" "$DIR/src" "$DIR/vendor" "$DIST/ext-root/$EXT_DIR_NAME/"
 find "$DIST/ext-root" -name '*.map' -delete
 find "$DIST/ext-root" -name '.DS_Store' -delete
 read_me > "$DIST/ext-root/$EXT_DIR_NAME/LEEME.txt"
+cp "$DIR/docs/INSTALLATION.md" "$DIST/ext-root/$EXT_DIR_NAME/INSTALLATION.md"
 cp "$DIR/LICENSE" "$DIR/THIRD_PARTY_NOTICES.md" "$DIST/ext-root/$EXT_DIR_NAME/"
 cp -R "$DIR/third-party-licenses" "$DIST/ext-root/$EXT_DIR_NAME/"
 
@@ -79,6 +81,7 @@ codesign --verify --strict "$APP_SRC"
 
 cp -R "$APP_SRC" "$DIST/dmg-root/$APP_NAME"
 read_me > "$DIST/dmg-root/LEEME.txt"
+cp "$DIR/docs/INSTALLATION.md" "$DIST/dmg-root/INSTALLATION.md"
 cp "$DIR/LICENSE" "$DIR/THIRD_PARTY_NOTICES.md" "$DIST/dmg-root/"
 cp -R "$DIR/third-party-licenses" "$DIST/dmg-root/"
 

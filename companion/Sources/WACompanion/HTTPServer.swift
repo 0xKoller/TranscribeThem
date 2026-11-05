@@ -133,7 +133,7 @@ public final class HTTPServer: @unchecked Sendable {
                 "ready": isReady,
                 "engine": "parakeet",
                 "model": "parakeet-tdt-0.6b-v3",
-                "version": "0.1.0",
+                "version": "0.2.0",
                 "processedCount": stats.processedCount,
                 "totalAudioSeconds": stats.totalAudioSeconds
             ]

@@ -45,6 +45,29 @@ const SELECTORS = {
 const HOOK_SOURCE = "wa-local-transcribe";
 const LOG = "[wa-transcribe]";
 
+function isXSite() {
+  const host = String((location && location.hostname) || "").toLowerCase();
+  if (host === "x.com" || host.endsWith(".x.com") || host === "twitter.com" || host.endsWith(".twitter.com")) return true;
+  // blob:, about:blank and data: frames created by x.com have an empty hostname.
+  // The X manifest entry is the only one that injects into those frames.
+  let origin = "";
+  let protocol = "";
+  try {
+    origin = String(location.origin || "").toLowerCase();
+    protocol = String(location.protocol || "").toLowerCase();
+  } catch (_) {}
+  if (/^https:\/\/([^/]+\.)?(x\.com|twitter\.com)(:\d+)?$/.test(origin)) return true;
+  return protocol === "blob:" || protocol === "about:" || protocol === "data:";
+}
+
+function shownError(err, code) {
+  const msg = mapError(err, code);
+  if (!isXSite()) return msg;
+  if (code === "RELOAD") return "Recargá la pestaña de Mensajes en X.";
+  if (code === "MEDIA_403") return "X no dejó bajar el audio (bloqueo o 403).";
+  return msg;
+}
+
 function log(...args) {
   console.log(LOG, ...args);
 }
@@ -161,6 +184,7 @@ function dedupeBubbles(nodes) {
 }
 
 function findVoiceContainers(root) {
+  if (isXSite()) return findXVoiceContainers(root);
   const found = new Set();
   const scope = root && root.querySelectorAll ? root : document;
   const add = (el) => {
@@ -181,6 +205,18 @@ function findVoiceContainers(root) {
   if (!root || root === document || root === document.body) {
     log("scan bubbles", list.length);
   }
+  return list;
+}
+
+function findXVoiceContainers(root) {
+  const api = globalThis.WaXFind;
+  if (!api) return [];
+  if (api.xDiscoverWaves) {
+    const found = api.xDiscoverWaves(root || document, 5000);
+    return (found && found.hosts) || [];
+  }
+  const list = api.findVoiceHosts ? api.findVoiceHosts(root || document) : [];
+  if (!root || root === document || root === document.body) log("scan x bubbles", list.length);
   return list;
 }
 
@@ -343,10 +379,28 @@ function paintWrapWords(wrap, at, playing) {
   });
 }
 
+function transcriptWraps() {
+  const list = [];
+  const seen = new Set();
+  const push = (wrap) => {
+    if (!wrap || seen.has(wrap) || !wrap.classList || !wrap.classList.contains("wa-t-wrap")) return;
+    seen.add(wrap);
+    list.push(wrap);
+  };
+  try {
+    document.querySelectorAll(".wa-t-wrap").forEach(push);
+  } catch (_) {
+    /* the light DOM still paints WhatsApp */
+  }
+  // X transcripts sit in an open shadow root. querySelectorAll does not enter it.
+  for (const ui of xUis.values()) push(ui.wrap);
+  return list;
+}
+
 function paintPlayback(marker, time, playing) {
   if (playing && marker) {
     const active = document.querySelector(`.wa-t-wrap[data-wa-t-id="${marker}"]`);
-    if (active && active._waShell && !active._waReanchored) {
+    if (active && active.dataset.site !== "x" && active._waShell && !active._waReanchored) {
       active._waReanchored = true;
       positionWrap(active, active._waPlay || active._waShell, active._waShell);
       setTimeout(() => {
@@ -355,7 +409,7 @@ function paintPlayback(marker, time, playing) {
     }
   }
   const api = globalThis.WaWords;
-  for (const wrap of document.querySelectorAll(".wa-t-wrap")) {
+  for (const wrap of transcriptWraps()) {
     const nodes = wrap.querySelectorAll(".wa-t-word");
     if (!nodes.length) continue;
     const mine = !!(marker && wrap.dataset.waTId === marker);
@@ -791,6 +845,7 @@ function holdEmojiDock(wrap, host) {
 }
 
 function dockWithEmoji(wrap) {
+  if (wrap && wrap.dataset.site === "x") return false;
   const foot = wrap && wrap._waFoot;
   if (!foot || wrap._waEmojiGaveUp) return false;
   const shell = wrap._waShell || wrap._waBubble || wrap.parentElement;
@@ -979,7 +1034,7 @@ function setUi(wrap, { phase, message, text, engine, transcribeMs, words }) {
 
   if (phase === "error") {
     status.hidden = false;
-    status.textContent = message || mapError(null, "GENERIC");
+    status.textContent = message || shownError(null, "GENERIC");
   } else {
     status.hidden = true;
     status.textContent = "";
@@ -994,6 +1049,18 @@ function setUi(wrap, { phase, message, text, engine, transcribeMs, words }) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => out.classList.add("is-open"));
       });
+    }
+    // The open animation grows the row for ~320ms. Measure again once it settles.
+    if (wrap.dataset.site === "x") {
+      wrap._waFitDone = false;
+      wrap._waFitScroll = -1;
+      wrap._waFitAfter = Date.now() + 420;
+      clearTimeout(wrap._waFitTimer);
+      wrap._waFitTimer = setTimeout(() => {
+        wrap._waFitDone = false;
+        placeXTranscript(wrap);
+      }, 440);
+      keepXFootOutOfTranscript(wrap);
     }
   } else if (out) {
     out.classList.remove("is-open");
@@ -1067,6 +1134,7 @@ function firstControl(container) {
 }
 
 function alignWrap(wrap) {
+  if (wrap && wrap.dataset.site === "x") return;
   const bubble = wrap._waBubble;
   const shell = wrap._waShell;
   if (!bubble || !bubble.getBoundingClientRect) return;
@@ -1127,10 +1195,586 @@ function outerBubble(inner, shell) {
   return edge;
 }
 
+function xOutgoing(node) {
+  let n = node;
+  for (let i = 0; i < 10 && n; i++) {
+    const side = n.getAttribute && n.getAttribute("data-side");
+    if (side === "end") return true;
+    if (side === "start") return false;
+    const cls = String(n.className || "");
+    if (/\bjustify-end\b/.test(cls)) return true;
+    if (/\bjustify-start\b/.test(cls)) return false;
+    n = n.parentElement;
+  }
+  if (node && node.querySelector) {
+    try {
+      const inner = node.querySelector("[data-side='end'], [data-side='start']");
+      if (inner) return inner.getAttribute("data-side") === "end";
+    } catch (_) {
+      /* the side stays incoming */
+    }
+  }
+  return false;
+}
+
+const xUis = new Map();
+// Virtual rows ignore CSS margin. The sizer has to grow by this many pixels
+// or the next message stays flush with the transcript.
+const X_TRANSCRIPT_GAP = 12;
+
+function xLayer() {
+  let layer = document.getElementById("wa-t-x-layer");
+  if (layer && layer.isConnected) return layer;
+  layer = document.createElement("div");
+  layer.id = "wa-t-x-layer";
+  layer.className = "wa-t-x-layer";
+  (document.body || document.documentElement).appendChild(layer);
+  return layer;
+}
+
+function xRowId(message) {
+  if (!message || !message.getAttribute) return "";
+  return message.getAttribute("data-dm-message-row") || message.getAttribute("data-testid") || "";
+}
+
+const X_SHADOW_CSS = `
+.wa-t-wrap[data-site="x"] {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 100%;
+  width: 100%;
+  max-width: min(460px, 100%);
+  box-sizing: border-box;
+  margin: 6px 0 12px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: #2f3336;
+  color: #e7e9ea;
+  font: 14.5px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  pointer-events: auto;
+  user-select: text;
+  position: relative;
+  clear: both;
+}
+.wa-t-wrap[data-site="x"][data-side="out"] { margin-left: auto; }
+.wa-t-wrap[data-site="x"][data-side="in"] { margin-right: auto; }
+.wa-t-wrap[data-site="x"][hidden] { display: none !important; }
+.wa-t-text {
+  display: grid;
+  grid-template-rows: 0fr;
+  max-width: 100%;
+  opacity: 0;
+  transition: grid-template-rows 0.32s ease, opacity 0.28s ease;
+}
+.wa-t-text.is-open { grid-template-rows: 1fr; opacity: 1; }
+.wa-t-grow { overflow: hidden; min-height: 0; }
+.wa-t-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.wa-t-wrap[data-site="x"] .wa-t-tools { display: none !important; }
+.wa-t-word { display: inline-grid; vertical-align: baseline; cursor: pointer; border-radius: 3px; white-space: nowrap; }
+.wa-t-word::before, .wa-t-word-tx { grid-area: 1 / 1; align-self: baseline; }
+.wa-t-word::before { content: attr(data-text) / ""; font-weight: 700; visibility: hidden; pointer-events: none; user-select: none; }
+.wa-t-word.is-upcoming { opacity: 0.4; }
+.wa-t-word.is-on { background: rgba(255, 255, 255, 0.16); opacity: 1; }
+.wa-t-word.is-on .wa-t-word-tx { font-weight: 700; }
+@media (prefers-reduced-motion: reduce) {
+  .wa-t-text { transition: none; }
+}
+.wa-t-foot.wa-t-x-tools {
+  display: inline-flex;
+  position: static;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  background: transparent;
+  align-items: center;
+  opacity: 1;
+  pointer-events: auto;
+  flex: 0 0 auto;
+}
+.wa-t-x-tools .wa-t-actions { display: inline-flex; gap: 0; }
+.wa-t-x-tools .wa-t-btn,
+.wa-t-x-tools .wa-t-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: inherit;
+  width: 32px;
+  height: 32px;
+  opacity: 0.9;
+  overflow: hidden;
+}
+.wa-t-btn-label { display: none !important; }
+.wa-t-x-tools .wa-t-btn svg,
+.wa-t-x-tools .wa-t-copy svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.wa-t-x-tools .wa-t-save,
+.wa-t-x-tools [hidden] { display: none !important; }
+.wa-t-x-tools button { cursor: pointer; border-radius: 9999px; }
+.wa-t-x-tools button:hover { background: var(--color-gray-100, rgba(255,255,255,.08)); }
+.wa-t-x-tools button:disabled { cursor: progress; opacity: .5; }
+`;
+
+const xShadowSheets = new WeakMap();
+
+function ensureXShadowStyle(node) {
+  const root = node && node.getRootNode ? node.getRootNode() : null;
+  if (!root || root.nodeType !== 11 || xShadowSheets.has(root)) return;
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(X_SHADOW_CSS);
+    root.adoptedStyleSheets = [...(root.adoptedStyleSheets || []), sheet];
+    xShadowSheets.set(root, sheet);
+  } catch (_) {
+    try {
+      const style = document.createElement("style");
+      style.textContent = X_SHADOW_CSS;
+      root.appendChild(style);
+      xShadowSheets.set(root, style);
+    } catch (_) {
+      /* the bubble still has inline layout */
+    }
+  }
+}
+
+function nodeInside(node, ancestor) {
+  let n = node;
+  for (let i = 0; i < 36 && n; i++) {
+    if (n === ancestor) return true;
+    const root = typeof n.getRootNode === "function" ? n.getRootNode() : null;
+    const next = n.parentElement || (root && root.nodeType === 11 && root.host) || null;
+    if (!next || next === n) return false;
+    n = next;
+  }
+  return false;
+}
+
+function xItemBox(row) {
+  if (!row) return row;
+  const cached = row._waTItem;
+  if (cached && cached.isConnected && nodeInside(row, cached)) return cached;
+  let n = row;
+  let found = null;
+  for (let i = 0; i < 8 && n; i++) {
+    let abs = false;
+    try {
+      abs = getComputedStyle(n).position === "absolute" || /translate3d|translateY/.test((n.style && n.style.transform) || "");
+    } catch (_) {
+      abs = false;
+    }
+    if (n !== row && (abs || (n.hasAttribute && n.hasAttribute("data-index")))) {
+      found = n;
+      break;
+    }
+    const root = typeof n.getRootNode === "function" ? n.getRootNode() : null;
+    const next = n.parentElement || (root && root.host) || null;
+    if (!next || next === n) break;
+    n = next;
+  }
+  if (!found) found = row.parentElement || row;
+  row._waTItem = found;
+  return found;
+}
+
+// The page hook finds the note by data-wa-t-id. While the transcript is hidden
+// the wrap is not in the message, so the foot on the light-DOM layer keeps the
+// same id and the row id. Removing the wrap makes extract throw NO_AUDIO.
+function stampXMarker(wrap) {
+  const foot = wrap && wrap._waFoot;
+  if (!wrap || !foot) return;
+  if (wrap.dataset.waTId) foot.dataset.waTId = wrap.dataset.waTId;
+  const id = wrap.dataset.xRow || xRowId(wrap._waShell);
+  if (!id) return;
+  wrap.dataset.xRow = id;
+  foot.dataset.xRow = id;
+}
+
+function parkXWrap(wrap) {
+  const layer = xLayer();
+  if (!layer || wrap.parentElement === layer) return;
+  layer.appendChild(wrap);
+}
+
+// The transcript bubble is only text. Copy and transcribe stay on the foot.
+function keepXFootOutOfTranscript(wrap) {
+  const foot = wrap && wrap._waFoot;
+  const actions = wrap && wrap._waActions;
+  const copy = wrap && wrap._waCopy;
+  const btn = wrap && wrap._waBtn;
+  const save = wrap && wrap._waSave;
+  if (actions && btn && copy && save && (btn.parentElement !== actions || copy.parentElement !== actions)) {
+    actions.append(btn, copy, save);
+  }
+  if (!foot || !wrap || !wrap.contains || !wrap.contains(foot)) return;
+  const layer = xLayer();
+  if (!layer) return;
+  foot.classList.remove("is-docked");
+  foot.style.visibility = "hidden";
+  if (foot.parentElement !== layer) layer.appendChild(foot);
+}
+
+function solidColor(value) {
+  const color = String(value || "").trim();
+  if (!color || color === "transparent") return "";
+  if (/^rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)$/.test(color)) return "";
+  return color;
+}
+
+// The voice pill already sits in the message padding. Match that inset and its fill.
+function alignXTranscript(wrap, item) {
+  const play = currentXPlay(wrap, wrap._waShell);
+  const pill = play && play.parentElement;
+  if (!pill || !item || !pill.getBoundingClientRect) return;
+  let itemRect = null;
+  let pillRect = null;
+  try {
+    itemRect = item.getBoundingClientRect();
+    pillRect = pill.getBoundingClientRect();
+  } catch (_) {
+    return;
+  }
+  if (itemRect.width < 8 || pillRect.width < 8) return;
+  let padLeft = 0;
+  let padRight = 0;
+  try {
+    const st = getComputedStyle(item);
+    padLeft = (parseFloat(st.borderLeftWidth) || 0) + (parseFloat(st.paddingLeft) || 0);
+    padRight = (parseFloat(st.borderRightWidth) || 0) + (parseFloat(st.paddingRight) || 0);
+  } catch (_) {
+    padLeft = 0;
+    padRight = 0;
+  }
+  const contentLeft = itemRect.left + padLeft;
+  const contentRight = itemRect.right - padRight;
+  const out = wrap.dataset.side === "out";
+  const pad = out
+    ? Math.max(0, Math.round(contentRight - pillRect.right))
+    : Math.max(0, Math.round(pillRect.left - contentLeft));
+  const room = Math.max(120, Math.round(contentRight - contentLeft - pad * 2));
+  const width = Math.min(460, room);
+  wrap.style.marginLeft = out ? "auto" : pad + "px";
+  wrap.style.marginRight = out ? pad + "px" : "auto";
+  wrap.style.width = width + "px";
+  wrap.style.maxWidth = width + "px";
+}
+
+function paintXBubble(wrap) {
+  if (wrap.dataset.waTBg) return;
+  const row = wrap._waShell;
+  let n = wrap._waPlay ? wrap._waPlay.parentElement : null;
+  for (let i = 0; i < 5 && n && n !== row && n !== document.body; i++) {
+    let bg = "";
+    let fg = "";
+    try {
+      const st = getComputedStyle(n);
+      bg = solidColor(st.backgroundColor);
+      fg = solidColor(st.color);
+    } catch (_) {
+      break;
+    }
+    if (bg) {
+      wrap.dataset.waTBg = bg;
+      wrap.style.backgroundColor = bg;
+      if (fg) wrap.style.color = fg;
+      return;
+    }
+    n = n.parentElement;
+  }
+}
+
+function placeXTranscript(wrap) {
+  if (!wrap || wrap.dataset.site !== "x") return;
+  stampXMarker(wrap);
+  const row = wrap._waShell;
+  if (wrap.hidden || !row || !row.isConnected) {
+    parkXWrap(wrap);
+    return;
+  }
+  const item = xItemBox(row);
+  if (!item || !item.appendChild) return;
+  ensureXShadowStyle(item);
+  const scrollH = wrap.scrollHeight || 0;
+  if (
+    wrap._waFitDone &&
+    wrap.parentElement === item &&
+    wrap._waFitScroll === scrollH &&
+    (!wrap._waFitAfter || Date.now() >= wrap._waFitAfter)
+  ) {
+    return;
+  }
+  wrap.style.position = "relative";
+  wrap.style.top = "auto";
+  wrap.style.left = "auto";
+  wrap.style.right = "auto";
+  wrap.style.visibility = "visible";
+  wrap.style.transform = "none";
+  wrap.style.boxSizing = "border-box";
+  wrap.style.flex = "0 0 auto";
+  wrap.style.marginBottom = X_TRANSCRIPT_GAP + "px";
+  keepXFootOutOfTranscript(wrap);
+  alignXTranscript(wrap, item);
+  paintXBubble(wrap);
+  try {
+    const display = getComputedStyle(item).display || "";
+    if (display.includes("flex") && item.style.flexWrap !== "wrap") item.style.flexWrap = "wrap";
+  } catch (_) {
+    /* leave the row's display alone */
+  }
+  if (wrap.parentElement !== item) item.appendChild(wrap);
+  fitXItem(item, wrap);
+}
+
+function fitXItem(item, wrap) {
+  if (!item || !wrap) return;
+  let itemRect = null;
+  let textRect = null;
+  try {
+    itemRect = item.getBoundingClientRect();
+    textRect = wrap.getBoundingClientRect();
+  } catch (_) {
+    return;
+  }
+  if (itemRect.height < 2 || textRect.height < 2) return;
+  // The gap lives in margin, which this rect does not include.
+  const overflow = textRect.bottom + X_TRANSCRIPT_GAP - itemRect.bottom;
+  if (overflow <= 2) {
+    if (!wrap._waFitAfter || Date.now() >= wrap._waFitAfter) {
+      wrap._waFitDone = true;
+      wrap._waFitScroll = wrap.scrollHeight || 0;
+    }
+    return;
+  }
+  const add = Math.ceil(overflow);
+  const stamp = Math.round(textRect.height) + ":" + add;
+  if (wrap._waFitStamp === stamp && Date.now() - (wrap._waFitAt || 0) < 80) return;
+  wrap._waFitStamp = stamp;
+  wrap._waFitAt = Date.now();
+  wrap._waFitDone = false;
+  let abs = false;
+  try {
+    abs = getComputedStyle(item).position === "absolute" || !!item.style.height;
+  } catch (_) {
+    abs = !!item.style.height;
+  }
+  if (abs) {
+    const declared = parseFloat(item.style.height);
+    const base = declared > 0 ? declared : itemRect.height;
+    const nextPx = Math.ceil(base + add) + "px";
+    if (item.style.height !== nextPx) item.style.height = nextPx;
+    if (item.style.overflow !== "visible") item.style.overflow = "visible";
+  }
+  const sizer = item.parentElement;
+  const sizerH = sizer && parseFloat(sizer.style && sizer.style.height);
+  const grown = Number(wrap.dataset.waTSized || 0);
+  // A virtualizer that resets the sizer must not grow it without a ceiling.
+  if (sizerH > 0 && add > 2 && grown < 1200) {
+    const room = Math.min(add, 1200 - grown);
+    sizer.style.height = Math.ceil(sizerH + room) + "px";
+    wrap.dataset.waTSized = String(grown + room);
+  }
+}
+
+// The buttons follow the pill from a layer on document.body. The transcript
+// sits in the message flow so the chat scroll moves it.
+function mountXUi(wrap) {
+  const foot = wrap && wrap._waFoot;
+  const layer = xLayer();
+  if (!foot || !layer) return;
+  const row = wrap._waShell;
+  foot.classList.add("wa-t-x-tools", "is-on");
+  foot.classList.remove("wa-t-aside", "wa-t-emoji-host");
+  const out = xOutgoing(row || wrap._waPlay);
+  foot.dataset.side = out ? "out" : "in";
+  wrap.dataset.side = foot.dataset.side;
+  const id = xRowId(row);
+  if (id) wrap.dataset.xRow = id;
+  stampXMarker(wrap);
+  wrap._waEmojiGaveUp = true;
+  wrap._waEmojiDock = false;
+  wrap._waAsideOnce = true;
+  if (wrap._waSave) wrap._waSave.hidden = true;
+  keepXFootOutOfTranscript(wrap);
+  if (!foot.classList.contains("is-docked")) {
+    if (foot.parentElement !== layer) layer.appendChild(foot);
+  }
+  placeXTranscript(wrap);
+  nudgeXFoot({ wrap, foot, row });
+}
+
+function isOurNode(el) {
+  const c = el && el.classList;
+  if (!c) return false;
+  return (
+    c.contains("wa-t-foot") ||
+    c.contains("wa-t-btn") ||
+    c.contains("wa-t-copy") ||
+    c.contains("wa-t-save") ||
+    c.contains("wa-t-actions") ||
+    c.contains("wa-t-wrap") ||
+    c.contains("wa-t-tools") ||
+    c.contains("wa-t-x-layer") ||
+    c.contains("wa-t-status")
+  );
+}
+
+// The play button's parent is often a full-width row. Measure the bubble from
+// the control and its small siblings, never that wide box.
+function currentXPlay(wrap, row) {
+  let play = wrap && wrap._waPlay;
+  if (!play || !play.isConnected) {
+    play = globalThis.WaXFind?.xPlayControl(row) || null;
+    if (wrap) wrap._waPlay = play;
+  }
+  return play && play.isConnected ? play : null;
+}
+
+function xBubbleRect(wrap, row) {
+  const play = currentXPlay(wrap, row);
+  if (!play) return null;
+  const target = play;
+  if (!target || !target.getBoundingClientRect) return null;
+  let base = null;
+  try {
+    base = target.getBoundingClientRect();
+  } catch (_) {
+    return null;
+  }
+  if (!base || base.width < 4 || !play || !play.parentElement) return base;
+  const kids = play.parentElement.children;
+  const count = kids ? kids.length : 0;
+  if (count < 1 || count > 8) return base;
+  let left = base.left;
+  let right = base.right;
+  let top = base.top;
+  let bottom = base.bottom;
+  const mid = base.top + base.height / 2;
+  for (let i = 0; i < count; i++) {
+    const child = kids[i];
+    if (!child || !child.getBoundingClientRect) continue;
+    if (child.classList && (child.classList.contains("wa-t-wrap") || child.classList.contains("wa-t-foot"))) continue;
+    let r = null;
+    try {
+      r = child.getBoundingClientRect();
+    } catch (_) {
+      r = null;
+    }
+    if (!r || r.width < 4 || r.height < 4 || r.width > base.width + 220) continue;
+    if (Math.abs(r.top + r.height / 2 - mid) > 36) continue;
+    if (r.left < left) left = r.left;
+    if (r.right > right) right = r.right;
+    if (r.top < top) top = r.top;
+    if (r.bottom > bottom) bottom = r.bottom;
+  }
+  return { left, right, top, bottom, width: right - left, height: bottom - top };
+}
+
+function parkXFoot(foot, rect, out, wrap) {
+  const layer = xLayer();
+  foot.classList.remove("is-docked");
+  if (layer && foot.parentElement !== layer) layer.appendChild(foot);
+  foot.style.position = "fixed";
+  foot.style.right = "auto";
+  foot.style.bottom = "auto";
+  foot.style.transform = "none";
+  foot.style.visibility = rect ? "visible" : "hidden";
+  foot.style.pointerEvents = "auto";
+  if (!rect) return;
+  const top = Math.round(rect.top + rect.height / 2 - 16);
+  const left = Math.round(out ? rect.left - 40 : rect.right + 8);
+  foot.style.top = top + "px";
+  foot.style.left = Math.max(4, left) + "px";
+}
+
+function placeXTools(wrap) {
+  if (!wrap || wrap.dataset.site !== "x") return;
+  mountXUi(wrap);
+  ensureXSync();
+}
+
+let xPlaceRaf = 0;
+let xScrollRaf = 0;
+
+function placeKnownFeet() {
+  if (!xOnChatPath()) {
+    looseXFeet();
+    return;
+  }
+  for (const [, ui] of xUis) {
+    const foot = ui.foot;
+    const wrap = ui.wrap;
+    if (!foot || !wrap || foot.classList.contains("is-docked")) continue;
+    nudgeXFoot(ui);
+  }
+}
+
+// One frame after notes are found. A timer that keeps measuring freezes X.
+function ensureXSync() {
+  if (xPlaceRaf || !xUis.size) return;
+  xPlaceRaf = requestAnimationFrame(() => {
+    xPlaceRaf = 0;
+    placeKnownFeet();
+  });
+}
+
+function onXScroll() {
+  if (xScrollRaf || !xUis.size) return;
+  xScrollRaf = requestAnimationFrame(() => {
+    xScrollRaf = 0;
+    for (const [, ui] of xUis) {
+      const foot = ui.foot;
+      const wrap = ui.wrap;
+      if (!foot || !wrap || foot.classList.contains("is-docked")) continue;
+      if (!xOnChatPath()) {
+        if (foot.style.visibility !== "hidden") foot.style.visibility = "hidden";
+        continue;
+      }
+      nudgeXFoot(ui);
+    }
+  });
+}
+
+// Verified in X's live shadow DOM: the rail belongs to the attachment group
+// and its native controls carry the owning message ID. No global bar search.
+function dockXNativeRail(ui) {
+  const { row, foot } = ui;
+  const rail = row.querySelector('[data-hover-rail]');
+  if (!rail || rail === foot || foot.contains(rail)) return false;
+  const id = xRowId(row);
+  const reply = Array.from(rail.children).find(el =>
+    el.getAttribute('data-testid') === 'message-reply-button-' + id);
+  if (!reply) return false;
+  ensureXShadowStyle(rail);
+  if (foot.parentElement !== rail) rail.prepend(foot);
+  foot.classList.add('is-docked');
+  Object.assign(foot.style, {
+    position: 'static', top: 'auto', left: 'auto', right: 'auto', bottom: 'auto',
+    transform: 'none', visibility: 'visible', margin: '0', width: 'auto',
+  });
+  return true;
+}
+
+function nudgeXFoot(ui) {
+  const { wrap, foot, row } = ui;
+  if (!wrap || !foot || !row || !row.isConnected) return;
+  if (xOnChatPath() && dockXNativeRail(ui)) return;
+  parkXFoot(foot, null, wrap.dataset.side === "out", wrap);
+}
+
 // Transcribir and download sit outside the colored bubble. The clock stays put.
 // Once only: moving it again makes the observer rescan and freezes WhatsApp.
 function placeAside(wrap) {
   if (!wrap) return;
+  if (wrap.dataset.site === "x") {
+    placeXTools(wrap);
+    return;
+  }
   if (wrap._waEmojiDock) return;
   if (!wrap._waEmojiGaveUp && dockWithEmoji(wrap)) return;
   if (wrap._waAsideOnce) return;
@@ -1189,14 +1833,19 @@ function positionWrap(wrap, playEl, shell) {
       else parent.appendChild(wrap);
     }
   }
-  if (parent.classList) parent.classList.toggle("wa-t-row", !!mount.inRow);
+  if (parent.classList) parent.classList.toggle("wa-t-row", !!mount.inRow && wrap.dataset.site !== "x");
   wrap._waPlay = playEl || null;
   wrap._waBubble = mount.bubble || null;
   wrap._waShell = shell;
-  wrap._waInRow = !!mount.inRow;
+  wrap._waInRow = !!mount.inRow && wrap.dataset.site !== "x";
   alignWrap(wrap);
-  placeAside(wrap);
-  placeBelowClock(wrap);
+  if (wrap.dataset.site === "x") {
+    placeBelowClock(wrap);
+    placeXTools(wrap);
+  } else {
+    placeAside(wrap);
+    placeBelowClock(wrap);
+  }
   bindHover(wrap);
   parkTools(wrap);
 }
@@ -1220,6 +1869,9 @@ function buildWrap() {
   const btnLabel = document.createElement("span");
   btnLabel.className = "wa-t-btn-label";
   btnLabel.textContent = "Transcribir";
+  btnLabel.hidden = true;
+  // The button sits in X's shadow tree, where content.css does not apply.
+  btnLabel.style.setProperty("display", "none", "important");
   btn.append(barsIcon(TRANSCRIBE_ICON), btnLabel);
   btn._waLabel = btnLabel;
 
@@ -1284,6 +1936,15 @@ function buildWrap() {
     tools.addEventListener(type, (ev) => ev.stopPropagation());
     foot.addEventListener(type, (ev) => ev.stopPropagation());
   }
+  // The transcript lives in X's shadow tree. A window listener only sees the host.
+  wrap.addEventListener("pointerdown", (ev) => {
+    const node = ev.target && ev.target.nodeType === 1 ? ev.target : ev.target && ev.target.parentElement;
+    const word = node && node.closest && node.closest(".wa-t-word");
+    if (!word) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    seekWord(word);
+  }, true);
 
   btn.addEventListener("click", (ev) => {
     ev.preventDefault();
@@ -1327,8 +1988,43 @@ function copyTranscript(wrap, copyBtn) {
   );
 }
 
+function injectX(message) {
+  if (!message || message.nodeType !== 1) return;
+  const id = xRowId(message);
+  if (!id) return;
+  const prev = xUis.get(id);
+  if (prev && prev.row === message && prev.foot && prev.foot.isConnected) {
+    if (!prev.wrap._waPlay?.isConnected) ensureXSync();
+    return;
+  }
+  if (prev) {
+    if (prev.foot) prev.foot.remove();
+    if (prev.wrap) prev.wrap.remove();
+    xUis.delete(id);
+  }
+  const api = globalThis.WaXFind;
+  const playEl = (api && api.xPlayControl(message)) || null;
+  const wrap = buildWrap();
+  wrap.dataset.site = "x";
+  wrap._waEmojiGaveUp = true;
+  wrap._waPlay = playEl;
+  wrap._waShell = message;
+  wrap._waBubble = (playEl && playEl.parentElement) || message;
+  wrap._waInRow = false;
+  const foot = wrap._waFoot;
+  xUis.set(id, { wrap, foot, row: message });
+  mountXUi(wrap);
+  bindHover(wrap);
+  parkTools(wrap);
+  ensureXSync();
+}
+
 function inject(container) {
   if (!container) return;
+  if (isXSite()) {
+    injectX(container);
+    return;
+  }
   if (container.closest && container.closest(".wa-t-wrap")) return;
   const playEl = firstControl(container);
   const shell = singleMessage(playEl || container);
@@ -1363,7 +2059,7 @@ async function saveAudio(container, wrap, saveBtn, out) {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     const base =
-      `wa-voice-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
+      `${isXSite() ? "x-voice" : "wa-voice"}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
       `-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
     const files = [{ name: `${base}.${audioExtension(mime)}`, mime, base64: extracted.base64 }];
     const bodyEl = out && out.querySelector ? out.querySelector(".wa-t-body") : null;
@@ -1416,9 +2112,13 @@ async function saveAudio(container, wrap, saveBtn, out) {
     if (status) {
       status.hidden = false;
       status.textContent = dead
-        ? "La extensión se recargó. Recargá la pestaña de WhatsApp Web."
+        ? isXSite()
+          ? "La extensión se recargó. Recargá la pestaña de Mensajes en X."
+          : "La extensión se recargó. Recargá la pestaña de WhatsApp Web."
         : noAudio
-        ? "No se pudo extraer automáticamente. Dale Play a la nota en WhatsApp y volvé a tocar Guardar audio."
+        ? isXSite()
+          ? "No se pudo extraer automáticamente. Dale Play a la nota en X y volvé a tocar Guardar audio."
+          : "No se pudo extraer automáticamente. Dale Play a la nota en WhatsApp y volvé a tocar Guardar audio."
         : `No se pudo guardar: ${(err && err.code) || reason}`;
     }
   } finally {
@@ -1432,6 +2132,19 @@ async function saveAudio(container, wrap, saveBtn, out) {
 async function startTranscribe(container, wrap) {
   const phase = wrap && wrap.dataset.phase;
   if (phase === "loading" || phase === "queued" || phase === "running") return;
+  const failSend = (err) => {
+    const dead = /context invalidated/i.test(String(err && err.message));
+    setUi(wrap, { phase: "error", message: shownError(err, dead ? "RELOAD" : "OFFSCREEN") });
+  };
+  try {
+    if (!chrome.runtime?.id) {
+      failSend(new Error("Extension context invalidated."));
+      return;
+    }
+  } catch (err) {
+    failSend(err);
+    return;
+  }
   const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   wrap.dataset.requestId = requestId;
   setUi(wrap, { phase: "loading" });
@@ -1446,7 +2159,7 @@ async function startTranscribe(container, wrap) {
     }
   } catch (err) {
     log("extract failed", err);
-    setUi(wrap, { phase: "error", message: mapError(err, err.code || "NO_AUDIO") });
+    setUi(wrap, { phase: "error", message: shownError(err, err.code || "NO_AUDIO") });
     return;
   }
   log("blob", {
@@ -1455,24 +2168,24 @@ async function startTranscribe(container, wrap) {
     bytes: extracted.byteLength,
   });
 
-  chrome.runtime.sendMessage(
-    {
-      type: WA_MSG.TRANSCRIBE,
-      requestId,
-      audioBase64: extracted.base64,
-      mimeType: extracted.mimeType || "audio/ogg",
-      byteLength: extracted.byteLength,
-    },
-    () => {
-      if (chrome.runtime.lastError) {
-        log("sendMessage error", chrome.runtime.lastError.message);
-        setUi(wrap, {
-          phase: "error",
-          message: mapError(chrome.runtime.lastError, "OFFSCREEN"),
-        });
+  // sendMessage can throw synchronously after an unpacked-extension reload;
+  // lastError only covers failures delivered through the callback.
+  try {
+    chrome.runtime.sendMessage(
+      {
+        type: WA_MSG.TRANSCRIBE,
+        requestId,
+        audioBase64: extracted.base64,
+        mimeType: extracted.mimeType || "audio/ogg",
+        byteLength: extracted.byteLength,
+      },
+      () => {
+        if (chrome.runtime.lastError) failSend(chrome.runtime.lastError);
       }
-    }
-  );
+    );
+  } catch (err) {
+    failSend(err);
+  }
 }
 
 function wrapForRequest(requestId) {
@@ -1490,7 +2203,8 @@ function recentUiPointer() {
 }
 
 function eventNode(ev) {
-  const t = ev && ev.target;
+  const path = ev && typeof ev.composedPath === "function" ? ev.composedPath() : null;
+  const t = (path && path[0]) || (ev && ev.target);
   if (!t) return null;
   return t.nodeType === 1 ? t : t.parentElement;
 }
@@ -1585,7 +2299,7 @@ function applyPrefs(settings) {
 }
 
 function applySiteGate(settings) {
-  const on = siteAllowed(settings);
+  const on = isXSite() || siteAllowed(settings);
   siteOn = on;
   if (!on) {
     if (observing) {
@@ -1629,14 +2343,555 @@ chrome.runtime.onMessage.addListener((msg) => {
     });
   } else if (msg.type === WA_MSG.ERROR) {
     log("error ui", { requestId: msg.requestId, message: msg.message });
-    setUi(wrap, { phase: "error", message: msg.message || mapError(null, "GENERIC") });
+    setUi(wrap, { phase: "error", message: msg.message || shownError(null, "GENERIC") });
   }
 });
 
+let xDebugError = "";
+let xDebugLast = "";
+let xDebugCopiedUntil = 0;
+
+function noteXDebugError(where, err) {
+  const text = where + ": " + String((err && (err.message || err)) || err);
+  if (text === xDebugError) return;
+  xDebugError = text;
+  log("x debug", xDebugError);
+}
+
+function xFrameBits() {
+  let list = [];
+  try {
+    list = document.querySelectorAll("iframe, frame");
+  } catch (_) {
+    list = [];
+  }
+  const sample = [];
+  for (const frame of list) {
+    if (sample.length >= 3) break;
+    let src = "";
+    try {
+      src = frame.getAttribute("src") || frame.src || "";
+    } catch (_) {
+      src = "";
+    }
+    if (!src) {
+      sample.push("(sin src)");
+      continue;
+    }
+    try {
+      const url = new URL(src, location.href);
+      if (url.protocol === "about:" || url.protocol === "blob:" || url.protocol === "data:") {
+        sample.push(url.protocol.replace(":", "") + (url.pathname ? url.pathname.slice(0, 18) : ""));
+      } else {
+        sample.push(url.host + url.pathname.slice(0, 28));
+      }
+    } catch (_) {
+      sample.push(String(src).slice(0, 32));
+    }
+  }
+  return { count: list.length, sample };
+}
+
+function xShadowBits() {
+  let open = 0;
+  let closed = 0;
+  let waves = 0;
+  let rows = 0;
+  let seen = 0;
+  const cap = 8000;
+  const stack = [document.body || document.documentElement];
+  const openClosed = chrome.dom && chrome.dom.openOrClosedShadowRoot;
+  while (stack.length && seen < cap) {
+    const el = stack.pop();
+    if (!el) continue;
+    if (el.nodeType === 11) {
+      if (el.querySelectorAll) {
+        try { waves += el.querySelectorAll("[data-testid='audio-waveform']").length; } catch (_) {}
+        try { rows += el.querySelectorAll("[data-dm-message-row]").length; } catch (_) {}
+      }
+      const kids = el.children;
+      if (kids) for (let i = 0; i < kids.length; i++) stack.push(kids[i]);
+      continue;
+    }
+    if (el.nodeType !== 1) continue;
+    if (el.id === "wa-t-x-debug" || el.id === "wa-t-x-debug-main") continue;
+    seen++;
+    let root = null;
+    try {
+      root = el.shadowRoot || (openClosed ? openClosed(el) : null);
+    } catch (_) {
+      root = el.shadowRoot || null;
+    }
+    if (root) {
+      if (el.shadowRoot) open++;
+      else closed++;
+      stack.push(root);
+    }
+    const kids = el.children;
+    if (kids) for (let i = 0; i < kids.length; i++) stack.push(kids[i]);
+  }
+  return { open, closed, waves, rows, capped: seen >= cap };
+}
+
+function xDebugVerdict(s) {
+  if (s.err) return s.err;
+  if (s.waves > 0 && s.hosts === 0) return "veo las ondas, pero el clasificador no las toma";
+  if (s.hosts > 0 && s.noId > 0 && s.buttons === 0) return "hay notas sin id; no se puede armar el botón";
+  if (s.hosts > 0 && s.buttons === 0) return "hay notas y el botón no se creó";
+  if (s.buttons > 0 && s.visible === 0) return "el botón está creado y oculto";
+  if (s.buttons > 0) return "botón en " + s.sample + "; si no lo ves, es la posición";
+  if (s.waves === 0 && s.shadowWaves > 0) return "las ondas están dentro de un shadow DOM";
+  if (s.rows === 0 && s.waves === 0 && s.frames.count > 0) return "este marco no tiene el chat";
+  if (s.rows > 0 && s.waves === 0) return "hay mensajes y ninguna onda de audio";
+  if (!s.hook && (s.rows > 0 || s.waves > 0)) return "veo el chat y el hook de audio no arrancó";
+  if (s.capped) return "no vi notas en este recorrido; la página es más grande";
+  return "en este documento no hay notas";
+}
+
+function paintXDebug() {
+  if (!document.documentElement) return;
+  const stale = document.getElementById("wa-t-x-debug-main");
+  const bar = document.getElementById("wa-t-x-debug");
+  if (stale) stale.remove();
+  if (bar) bar.remove();
+  return;
+  if (!isXSite() || !document.documentElement) return;
+
+  let ver = "?";
+  try {
+    ver = chrome.runtime.getManifest().version;
+  } catch (_) {}
+
+  let rows = 0;
+  let waves = 0;
+  try {
+    rows = document.querySelectorAll("[data-dm-message-row]").length;
+    waves = document.querySelectorAll("[data-testid='audio-waveform']").length;
+  } catch (_) {}
+
+  const shadows = xShadowBits();
+  let hosts = [];
+  if (waves > 0 || rows > 0) {
+    try {
+      hosts = (globalThis.WaXFind && globalThis.WaXFind.findVoiceHosts(document)) || [];
+    } catch (err) {
+      noteXDebugError("notas", err);
+    }
+  }
+  let noId = 0;
+  for (const host of hosts) {
+    if (!host || !host.getAttribute) continue;
+    if (!host.getAttribute("data-dm-message-row") && !host.getAttribute("data-testid")) noId++;
+  }
+
+  const layer = document.getElementById("wa-t-x-layer");
+  let buttons = 0;
+  let visible = 0;
+  let sample = "";
+  if (layer) {
+    for (const foot of layer.querySelectorAll(".wa-t-foot")) {
+      buttons++;
+      let rect = null;
+      try { rect = foot.getBoundingClientRect(); } catch (_) { rect = null; }
+      if (foot.style.visibility !== "hidden" && rect && rect.width > 0 && rect.height > 0) {
+        visible++;
+        if (!sample) sample = Math.round(rect.left) + "," + Math.round(rect.top);
+      }
+    }
+  }
+
+  const frames = xFrameBits();
+  const hook = document.documentElement.getAttribute("data-wa-t-hook") === "1";
+  const frame = window === window.top ? "top" : "iframe";
+  let path = location.pathname || "/";
+  if (path.length > 36) path = path.slice(0, 36) + "…";
+  const verdict = xDebugVerdict({
+    err: xDebugError,
+    hook,
+    waves,
+    hosts: hosts.length,
+    noId,
+    buttons,
+    visible,
+    sample: sample || "?",
+    rows,
+    frames,
+    shadowWaves: shadows.waves,
+    capped: shadows.capped,
+  });
+  const line1 =
+    "wa-t " + ver + " · " + frame + " · " + path +
+    " · filas " + rows + " · ondas " + waves +
+    (shadows.waves ? " · ondas-shadow " + shadows.waves : "") +
+    " · notas " + hosts.length + " · botones " + buttons +
+    " · hook " + (hook ? "sí" : "no");
+  const line2 =
+    verdict +
+    " · sombras " + shadows.open + "/" + shadows.closed + (shadows.capped ? "+" : "") +
+    " · iframes " + frames.count +
+    (frames.sample.length ? " (" + frames.sample.join(", ") + ")" : "") +
+    " · clic para copiar";
+  const text = Date.now() < xDebugCopiedUntil ? line1 + "\n" + line2 + "\ncopiado" : line1 + "\n" + line2;
+
+  let el = document.getElementById("wa-t-x-debug");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "wa-t-x-debug";
+    el.className = "wa-t-x-debug";
+    el.style.cssText = [
+      "position:fixed",
+      "top:0",
+      "left:0",
+      "right:0",
+      "z-index:2147483647",
+      "background:#ffe14a",
+      "color:#111",
+      "font:600 13px/1.35 ui-monospace,Menlo,monospace",
+      "padding:8px 12px",
+      "white-space:pre-wrap",
+      "text-align:left",
+      "pointer-events:auto",
+      "cursor:pointer",
+    ].join(";");
+    el.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      xDebugCopiedUntil = Date.now() + 1500;
+      const dump = el.dataset.dump || el.textContent || "";
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(dump).catch(() => {});
+      }
+    });
+    document.documentElement.appendChild(el);
+  }
+  el.dataset.dump = [
+    "version " + ver,
+    "href " + location.href,
+    "frame " + frame,
+    "filas " + rows,
+    "ondas " + waves,
+    "ondasShadow " + shadows.waves,
+    "filasShadow " + shadows.rows,
+    "notas " + hosts.length,
+    "sinId " + noId,
+    "botones " + buttons,
+    "visibles " + visible,
+    "pos " + (sample || "-"),
+    "hook " + (hook ? "si" : "no"),
+    "sombrasAbiertas " + shadows.open,
+    "sombrasCerradas " + shadows.closed,
+    "iframes " + frames.count + " " + frames.sample.join(" | "),
+    "error " + (xDebugError || "-"),
+    "veredicto " + verdict,
+  ].join("\n");
+  if (el.textContent !== text) el.textContent = text;
+  document.documentElement.setAttribute("data-wa-t-ext", ver);
+  if (text !== xDebugLast) {
+    xDebugLast = text;
+    log("x debug", text.replace(/\n/g, " | "));
+  }
+}
+
+const watchedShadows = new Set();
+const shadowMos = new WeakMap();
+const xDirtyRoots = new Set();
+const xRechecked = new WeakSet();
+let xDirtyTimer = 0;
+let xBooted = false;
+let xBootTries = 0;
+let xBootTimer = 0;
+let xSeenPath = "";
+let xPeekTimer = 0;
+let xPeekNode = null;
+
+function xOnChatPath() {
+  try {
+    return /^\/(i\/chat|messages|chat)(\/|$)/.test(String(location.pathname || ""));
+  } catch (_) {
+    return false;
+  }
+}
+
+function xRememberPath() {
+  try {
+    xSeenPath = location.pathname || "";
+  } catch (_) {
+    xSeenPath = "";
+  }
+}
+
+function observeShadow(root) {
+  if (!root || root.nodeType !== 11 || watchedShadows.has(root)) return;
+  watchedShadows.add(root);
+  try {
+    const mo = new MutationObserver(onDomMutations);
+    mo.observe(root, { childList: true, subtree: true });
+    shadowMos.set(root, mo);
+  } catch (_) {
+    /* this root cannot be observed */
+  }
+}
+
+function xShadowInteresting(root) {
+  if (!root || typeof root.querySelector !== "function") return false;
+  try {
+    return !!root.querySelector("[data-testid='audio-waveform'], [data-dm-message-row]");
+  } catch (_) {
+    return false;
+  }
+}
+
+function xConsiderShadow(root) {
+  if (!root || root.nodeType !== 11 || watchedShadows.has(root)) return;
+  if (xShadowInteresting(root)) {
+    observeShadow(root);
+    xInjectShadow(root);
+    return;
+  }
+  if (!xOnChatPath() || xRechecked.has(root)) return;
+  xRechecked.add(root);
+  setTimeout(() => {
+    if (watchedShadows.has(root) || !xShadowInteresting(root)) return;
+    observeShadow(root);
+    xInjectShadow(root);
+  }, 700);
+}
+
+function xHostFromWave(wave) {
+  let n = wave;
+  for (let i = 0; i < 14 && n; i++) {
+    if (n.nodeType === 1 && n.getAttribute) {
+      const testId = n.getAttribute("data-testid") || "";
+      if (n.getAttribute("data-dm-message-row") || (testId.startsWith("message-") && !testId.startsWith("message-text-"))) {
+        return n;
+      }
+    }
+    const root = typeof n.getRootNode === "function" ? n.getRootNode() : null;
+    const next = n.parentElement || (root && root.nodeType === 11 && root.host) || null;
+    if (!next || next === n) break;
+    n = next;
+  }
+  return null;
+}
+
+function xInjectShadow(root) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  let waves = [];
+  try {
+    waves = root.querySelectorAll("[data-testid='audio-waveform']");
+  } catch (_) {
+    return;
+  }
+  for (const wave of waves) {
+    const host = xHostFromWave(wave);
+    if (host) injectX(host);
+  }
+}
+
+function scheduleXDirty() {
+  if (xDirtyTimer) return;
+  xDirtyTimer = setTimeout(() => {
+    xDirtyTimer = 0;
+    const roots = [...xDirtyRoots];
+    xDirtyRoots.clear();
+    for (const root of roots) xInjectShadow(root);
+  }, 250);
+}
+
+function xPeekShadows(node) {
+  const stack = [node];
+  let seen = 0;
+  while (stack.length && seen < 48) {
+    const el = stack.pop();
+    if (!el || el.nodeType !== 1) continue;
+    seen += 1;
+    if (el.shadowRoot) xConsiderShadow(el.shadowRoot);
+    const kids = el.children;
+    if (!kids || !kids.length) continue;
+    for (let i = kids.length - 1; i >= 0; i--) {
+      const kid = kids[i];
+      if (kid && kid.shadowRoot) stack.push(kid);
+    }
+    if (seen < 8) {
+      for (let i = kids.length - 1; i >= 0; i--) {
+        const kid = kids[i];
+        if (kid && !kid.shadowRoot) stack.push(kid);
+      }
+    }
+  }
+}
+
+function scheduleXPeek(node) {
+  xPeekNode = node;
+  if (xPeekTimer) return;
+  xPeekTimer = setTimeout(() => {
+    xPeekTimer = 0;
+    const target = xPeekNode;
+    xPeekNode = null;
+    if (!target || !target.isConnected) return;
+    xPeekShadows(target);
+  }, 400);
+}
+
+function xNoteNavigation() {
+  let path = "";
+  try {
+    path = location.pathname || "";
+  } catch (_) {
+    return;
+  }
+  if (path === xSeenPath) return;
+  xSeenPath = path;
+  clearTimeout(xBootTimer);
+  xBooted = false;
+  xBootTries = 0;
+  looseXFeet();
+  if (xOnChatPath()) xBootScan();
+}
+
+function looseXFeet() {
+  const onChat = xOnChatPath();
+  const layer = document.getElementById("wa-t-x-layer");
+  for (const [, ui] of xUis) {
+    const foot = ui.foot;
+    const wrap = ui.wrap;
+    const row = ui.row;
+    const gone = !onChat || !row || !row.isConnected;
+    if (!gone) continue;
+    if (wrap) {
+      wrap._waHovering = false;
+      clearTimeout(wrap._waDockTimer);
+      clearTimeout(wrap._waHideTimer);
+    }
+    if (!foot) continue;
+    foot.classList.remove("is-docked");
+    foot.style.visibility = "hidden";
+    if (layer && foot.parentElement !== layer) {
+      try {
+        layer.appendChild(foot);
+      } catch (_) {
+        /* the foot left with the chat */
+      }
+    }
+  }
+  if (layer) layer.style.visibility = onChat ? "" : "hidden";
+}
+
+let xLooseRaf = 0;
+function scheduleLooseXFeet() {
+  if (xLooseRaf) return;
+  xLooseRaf = requestAnimationFrame(() => {
+    xLooseRaf = 0;
+    looseXFeet();
+  });
+}
+
+function xBootScan() {
+  if (xBooted) return;
+  xBooted = true;
+  const api = globalThis.WaXFind;
+  if (!api || !api.xDiscoverWaves) return;
+  let found = { hosts: [], shadows: [] };
+  try {
+    found = api.xDiscoverWaves(document, 5000) || found;
+  } catch (err) {
+    noteXDebugError("boot", err);
+  }
+  for (const shadow of found.shadows || []) observeShadow(shadow);
+  for (const host of found.hosts || []) injectX(host);
+  const empty = !(found.hosts && found.hosts.length) && !(found.shadows && found.shadows.length);
+  if (empty && xOnChatPath() && xBootTries < 3) {
+    xBootTries += 1;
+    clearTimeout(xBootTimer);
+    xBootTimer = setTimeout(() => {
+      xBootTimer = 0;
+      xBooted = false;
+      xBootScan();
+    }, 1500);
+  }
+}
+
+function noteXAdded(node) {
+  if (!node || node.nodeType !== 1) return;
+  const rail = node.closest?.('[data-hover-rail]');
+  if (rail) {
+    const row = rail.closest('[data-dm-message-row]');
+    const ui = row && xUis.get(xRowId(row));
+    if (ui) nudgeXFoot(ui);
+    return;
+  }
+  const testId = (node.getAttribute && node.getAttribute("data-testid")) || "";
+  if (testId === "audio-waveform") {
+    const host = xHostFromWave(node);
+    if (host) injectX(host);
+    const root = typeof node.getRootNode === "function" ? node.getRootNode() : null;
+    if (root && root.nodeType === 11) observeShadow(root);
+    return;
+  }
+  const rowId = node.getAttribute && node.getAttribute("data-dm-message-row");
+  if (rowId || (testId.startsWith("message-") && !testId.startsWith("message-text-"))) {
+    let wave = null;
+    try {
+      wave = node.querySelector && node.querySelector("[data-testid='audio-waveform']");
+    } catch (_) {
+      wave = null;
+    }
+    if (!wave) return;
+    const root = typeof node.getRootNode === "function" ? node.getRootNode() : null;
+    if (root && root.nodeType === 11) observeShadow(root);
+    injectX(node);
+    return;
+  }
+  if (node.shadowRoot) xConsiderShadow(node.shadowRoot);
+  const kids = node.childElementCount || 0;
+  if (kids > 40) {
+    xNoteNavigation();
+    const root = typeof node.getRootNode === "function" ? node.getRootNode() : null;
+    if (root && root.nodeType === 11 && watchedShadows.has(root)) {
+      xDirtyRoots.add(root);
+      scheduleXDirty();
+    } else if (xOnChatPath()) {
+      scheduleXPeek(node);
+    }
+    return;
+  }
+  if (kids && kids <= 8 && node.children) {
+    for (let i = 0; i < node.children.length; i++) {
+      const kid = node.children[i];
+      if (kid && kid.shadowRoot) xConsiderShadow(kid.shadowRoot);
+    }
+  }
+  const root = typeof node.getRootNode === "function" ? node.getRootNode() : null;
+  if (root && root.nodeType === 11 && watchedShadows.has(root)) {
+    xDirtyRoots.add(root);
+    scheduleXDirty();
+  }
+}
+
+function pruneShadows() {
+  for (const root of [...watchedShadows]) {
+    const host = root.host;
+    if (host && host.isConnected) continue;
+    watchedShadows.delete(root);
+    const mo = shadowMos.get(root);
+    if (mo) {
+      mo.disconnect();
+      shadowMos.delete(root);
+    }
+  }
+}
+
 function scan(root) {
-  if (!siteOn) return;
-  for (const container of findVoiceContainers(root || document)) {
-    inject(container);
+  if (!isXSite() && !siteOn) return;
+  try {
+    if (isXSite()) {
+      if (!root || root === document || root === document.documentElement || root === document.body) xBootScan();
+      else noteXAdded(root);
+      return;
+    }
+    for (const container of findVoiceContainers(root || document)) inject(container);
+  } catch (err) {
+    noteXDebugError("scan", err);
   }
 }
 
@@ -1646,30 +2901,65 @@ function scheduleScan() {
   scanTimer = setTimeout(() => scan(document), 80);
 }
 
-const OUR_UI = ".wa-t-wrap, .wa-t-aside, .wa-t-foot, .wa-t-tools, .wa-t-btn";
+// React drops the hover bar and the foot with it. Put the marker back on the
+// layer so extract can still find data-wa-t-id. Only a small removed node:
+// querying a virtualizer subtree on every removal freezes the tab.
+function rescueXFoot(node) {
+  if (!node || node.nodeType !== 1) return;
+  const kids = node.childElementCount || 0;
+  let foot = null;
+  if (node.classList && node.classList.contains("wa-t-foot")) foot = node;
+  else if (kids > 0 && kids <= 8 && node.querySelector) {
+    try {
+      foot = node.querySelector(".wa-t-foot");
+    } catch (_) {
+      foot = null;
+    }
+  }
+  if (!foot || !foot._waWrap || foot._waWrap.dataset.site !== "x") return;
+  if (foot.isConnected && foot.classList.contains("is-docked")) return;
+  const layer = xLayer();
+  if (!layer || foot.parentElement === layer) return;
+  foot.classList.remove("is-docked");
+  foot.style.visibility = "hidden";
+  layer.appendChild(foot);
+  ensureXSync();
+}
 
-const observer = new MutationObserver((mutations) => {
+const OUR_UI = ".wa-t-wrap, .wa-t-aside, .wa-t-foot, .wa-t-tools, .wa-t-btn, .wa-t-x-layer, .wa-t-x-debug";
+
+function onDomMutations(mutations) {
   for (const m of mutations) {
     for (const node of m.addedNodes) {
       if (node.nodeType !== 1) continue;
       if (node.matches?.(OUR_UI) || node.closest?.(OUR_UI)) continue;
-      scan(node);
+      if (isXSite()) noteXAdded(node);
+      else scan(node);
     }
     for (const node of m.removedNodes) {
       if (node.nodeType !== 1) continue;
-      if (node.classList?.contains("wa-t-wrap") || node.querySelector?.(".wa-t-wrap")) scheduleScan();
+      if (isXSite()) {
+        rescueXFoot(node);
+        scheduleLooseXFeet();
+      }
+      if (!isXSite() && (node.classList?.contains("wa-t-wrap") || node.querySelector?.(".wa-t-wrap"))) scheduleScan();
       if (node.matches?.(OUR_UI) || node.closest?.(OUR_UI)) continue;
       const tools = node.classList?.contains("wa-t-tools") ? node : node.querySelector?.(".wa-t-tools");
       const owner = tools && tools._waWrap;
       if (owner) setTimeout(() => parkTools(owner), 0);
     }
   }
-});
+}
+
+const observer = new MutationObserver(onDomMutations);
 
 // A previous content-script instance (extension reloaded without reloading the
 // tab) leaves dead buttons behind. Remove them so only live ones remain.
 function removeStaleWraps() {
   // Feet live in the emoji tray, outside the wrap. Drop them with the old script.
+  const layer = document.getElementById("wa-t-x-layer");
+  if (layer) layer.remove();
+  xUis.clear();
   document.querySelectorAll(".wa-t-foot").forEach((n) => n.remove());
   document.querySelectorAll(".wa-t-wrap").forEach((n) => {
     const parent = n.parentElement;
@@ -1689,34 +2979,80 @@ function removeStaleWraps() {
   document.querySelectorAll(".wa-t-host").forEach((n) => n.classList.remove("wa-t-host"));
 }
 
-function start() {
-  removeStaleWraps();
-  refreshDebug();
-  if (chrome.storage && chrome.storage.onChanged) {
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== "local") return;
-      if (!changes.debugMode && !changes.highlightWords && !changes.sites) return;
-      refreshDebug();
-    });
-  }
-  window.addEventListener(
-    "resize",
-    () => {
-      document.querySelectorAll(".wa-t-wrap").forEach((wrap) => alignWrap(wrap));
-    },
-    { passive: true }
-  );
-  chrome.runtime.sendMessage({ type: WA_MSG.PRELOAD }, () => {
-    void chrome.runtime.lastError;
-  });
+// Reloading an unpacked extension invalidates the old tab's runtime.
+// Stop its polling rather than throwing every eight seconds until tab reload.
+function startCompanionPolling() {
+  let timer = 0;
   const pullShared = () => {
-    chrome.runtime.sendMessage({ type: WA_MSG.CHECK_COMPANION }, () => {
+    try {
+      if (!chrome.runtime?.id) {
+        clearInterval(timer);
+        return false;
+      }
+      chrome.runtime.sendMessage({ type: WA_MSG.CHECK_COMPANION }, () => {
+        void chrome.runtime.lastError;
+      });
+      return true;
+    } catch (err) {
+      clearInterval(timer);
+      if (!/context invalidated/i.test(String(err && err.message))) console.warn(LOG, "companion polling stopped", err);
+      return false;
+    }
+  };
+  if (pullShared()) timer = setInterval(pullShared, 8000);
+}
+
+function start() {
+  try {
+    if (isXSite()) paintXDebug();
+    removeStaleWraps();
+    refreshDebug();
+    if (chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== "local") return;
+        if (!changes.debugMode && !changes.highlightWords && !changes.sites) return;
+        refreshDebug();
+      });
+    }
+    xRememberPath();
+    scan(document);
+    window.addEventListener(
+      "resize",
+      () => {
+        document.querySelectorAll(".wa-t-wrap").forEach((wrap) => alignWrap(wrap));
+      },
+      { passive: true }
+    );
+    if (isXSite() && !globalThis.__waTXWatch) {
+      globalThis.__waTXWatch = true;
+      document.addEventListener("scroll", onXScroll, { capture: true, passive: true });
+    }
+    chrome.runtime.sendMessage({ type: WA_MSG.PRELOAD }, () => {
       void chrome.runtime.lastError;
     });
-  };
-  pullShared();
-  setInterval(pullShared, 8000);
-  log("content script ready");
+    log("content script ready");
+    if (isXSite()) paintXDebug();
+  } catch (err) {
+    noteXDebugError("start", err);
+    try { paintXDebug(); } catch (_) {}
+  }
+  if (isXSite() && !globalThis.__waTXPrune) {
+    globalThis.__waTXPrune = setInterval(() => {
+      try {
+        pruneShadows();
+      } catch (_) {}
+    }, 20000);
+  }
+  if (isXSite() && globalThis.navigation && !globalThis.__waTXNav) {
+    globalThis.__waTXNav = true;
+    try {
+      navigation.addEventListener("navigatesuccess", () => {
+        xSeenPath = "";
+        xNoteNavigation();
+      });
+    } catch (_) {}
+  }
+  startCompanionPolling();
 }
 
 if (document.readyState === "loading") {

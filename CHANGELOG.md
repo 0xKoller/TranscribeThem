@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — 2026-11-05
+
+- Transcripción local de notas de voz en X DMs, incluyendo su interfaz con Shadow DOM.
+- Acción de transcribir dentro de la barra nativa de X; se convierte en Copiar al terminar.
+- Transcripciones alineadas con los mensajes, resaltado de palabras y navegación por audio.
+- Recuperación de controles cuando X reemplaza elementos y manejo del contexto invalidado al actualizar la extensión.
+- Tutorial actualizado para X y actualizaciones; dos nuevas suites de regresión.
+
 ## 0.1.0 — 2026-11-05
 
 Primera publicación open source de TranscribeThem, con historial nuevo y licencia MIT.
