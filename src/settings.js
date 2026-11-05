@@ -7,13 +7,14 @@
     companionPort: 8765,
     debugMode: false,
     engineMode: "auto",
-    sites: { whatsapp: true },
+    sites: { whatsapp: true, x: true },
     highlightWords: true,
     openAtLaunch: false,
   };
 
   g.WA_SITES = [
     { id: "whatsapp", label: "WhatsApp Web", host: "web.whatsapp.com" },
+    { id: "x", label: "X", host: "x.com" },
   ];
 
   g.waNormalizeLanguage = function waNormalizeLanguage(value) {
@@ -42,6 +43,7 @@
     } catch (_) {
       return "";
     }
+    if (host === "x.com" || host.endsWith(".x.com") || host === "twitter.com" || host.endsWith(".twitter.com")) return "x";
     const site = g.WA_SITES.find(function (item) { return item.host === host; });
     return site ? site.id : "";
   };

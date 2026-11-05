@@ -32,6 +32,71 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(again.current.updatedAt.timeIntervalSince1970, now.timeIntervalSince1970, accuracy: 1)
     }
 
+    func testXSiteSurvivesSettingsAndStatsRoundTrip() {
+        let dir = tempDir()
+        let settings = SettingsStore(directory: dir)
+        settings.update(json: ["sites": ["x": false]])
+        XCTAssertEqual(SettingsStore(directory: dir).current.sites["x"], false)
+        let stats = StatsStore(directory: dir)
+        stats.record(audioSeconds: 12, transcribeMs: 400, engine: "parakeet", model: "m", ok: true, site: "x")
+        let snapshot = StatsStore(directory: dir).snapshot()
+        XCTAssertEqual(snapshot.recent.first?.site, "x")
+        XCTAssertEqual(snapshot.days.first?.bySite["x"], 1)
+    }
+
+    func testRecentActivityRespectsSelectedPeriod() {
+        let store = StatsStore(directory: tempDir())
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        for age in [0, 2, 8] {
+            store.record(audioSeconds: 12, transcribeMs: 400, engine: "parakeet", model: "m", ok: true,
+                         site: "x", now: calendar.date(byAdding: .day, value: -age, to: now)!, calendar: calendar)
+        }
+        let snapshot = store.snapshot()
+        XCTAssertEqual(snapshot.recentActivity(.today, now: now, calendar: calendar).count, 1)
+        XCTAssertEqual(snapshot.recentActivity(.week, now: now, calendar: calendar).count, 2)
+        XCTAssertEqual(snapshot.recentActivity(.all, now: now, calendar: calendar).count, 3)
+    }
+
+    func testTranscriptHistoryRequiresOptInAndCanBeCleared() throws {
+        let dir = tempDir()
+        let service = CompanionService(directory: dir)
+        XCTAssertFalse(service.settings.current.saveTranscripts)
+        service.recordJob(audioSeconds: 2, transcribeMs: 100, engine: "parakeet", model: "m", ok: true, transcript: "not retained")
+        XCTAssertNil(StatsStore(directory: dir).snapshot().recent.first?.transcript)
+        service.updateSettings(json: ["saveTranscripts": true])
+        XCTAssertTrue(SettingsStore(directory: dir).current.saveTranscripts)
+        for engine in ["parakeet", "whisper"] {
+            service.recordJob(audioSeconds: 3, transcribeMs: 200, engine: engine, model: "m", ok: true, site: "x", transcript: "Texto completo de prueba")
+        }
+        XCTAssertEqual(StatsStore(directory: dir).snapshot().recent.filter { $0.transcript != nil }.count, 2)
+        service.updateSettings(json: ["languageMode": "en"])
+        XCTAssertTrue(service.settings.current.saveTranscripts, "Unrelated browser sync must preserve opt-in")
+        service.updateSettings(json: ["saveTranscripts": false])
+        service.recordJob(audioSeconds: 2, transcribeMs: 100, engine: "whisper", model: "m", ok: true, transcript: "not retained either")
+        XCTAssertNil(service.stats.snapshot().recent.first?.transcript)
+        XCTAssertEqual(service.stats.snapshot().recent.filter { $0.transcript != nil }.count, 2)
+        try service.clearSavedTranscripts()
+        let again = StatsStore(directory: dir).snapshot()
+        XCTAssertTrue(again.recent.allSatisfy { $0.transcript == nil })
+        XCTAssertEqual(again.processedCount, 4)
+        XCTAssertEqual(again.totalAudioSeconds, 10)
+        let stored = try String(contentsOf: dir.appendingPathComponent("stats.json"), encoding: .utf8)
+        XCTAssertFalse(stored.contains("Texto completo"))
+    }
+
+    func testTranscriptHistoryUsesExistingRetentionLimit() {
+        let service = CompanionService(directory: tempDir())
+        service.updateSettings(json: ["saveTranscripts": true])
+        for i in 0...StatsStore.recentLimit {
+            service.recordJob(audioSeconds: 1, transcribeMs: 10, engine: "whisper", model: "m", ok: true, transcript: "note-\(i)")
+        }
+        let jobs = service.stats.snapshot().recent
+        XCTAssertEqual(jobs.count, StatsStore.recentLimit)
+        XCTAssertFalse(jobs.contains { $0.transcript == "note-0" })
+    }
+
     func testModelAlias() {
         let store = SettingsStore(directory: tempDir())
         store.update(json: ["modelId": "onnx-community/whisper-medium"])
@@ -99,6 +164,7 @@ final class StoreTests: XCTestCase {
         XCTAssertFalse(store.current.useCompanion)
         XCTAssertEqual(store.current.engineMode, "browser")
         XCTAssertEqual(store.current.sites["whatsapp"], true)
+        XCTAssertFalse(store.current.saveTranscripts)
         XCTAssertFalse(store.current.openAtLaunch)
         XCTAssertTrue(store.current.highlightWords)
     }
@@ -120,7 +186,7 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(store.current.engineMode, "auto")
 
         store.update(json: ["sites": ["whatsapp": false, "evil": true], "languageMode": "auto", "highlightWords": false])
-        XCTAssertEqual(store.current.sites, ["whatsapp": false])
+        XCTAssertEqual(store.current.sites, ["whatsapp": false, "x": true])
         XCTAssertEqual(store.current.languageMode, "auto")
         XCTAssertFalse(store.current.highlightWords)
     }

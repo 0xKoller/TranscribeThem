@@ -18,6 +18,7 @@ public final class CompanionService: @unchecked Sendable {
     public var onChange: (@Sendable () -> Void)?
     public var onOpen: (@Sendable () -> Void)?
 
+    private let historyLock = NSLock()
     private let helloLock = NSLock()
     private var helloValue: ExtensionHello?
 
@@ -47,6 +48,8 @@ public final class CompanionService: @unchecked Sendable {
 
     @discardableResult
     public func updateSettings(json: [String: Any], now: Date = Date()) -> CompanionSettings {
+        historyLock.lock()
+        defer { historyLock.unlock() }
         let next = settings.update(json: json, now: now)
         onChange?()
         return next
@@ -60,8 +63,11 @@ public final class CompanionService: @unchecked Sendable {
         ok: Bool,
         site: String = "whatsapp",
         errorCode: String = "",
+        transcript: String? = nil,
         now: Date = Date()
     ) {
+        historyLock.lock()
+        defer { historyLock.unlock() }
         stats.record(
             audioSeconds: audioSeconds,
             transcribeMs: transcribeMs,
@@ -70,8 +76,16 @@ public final class CompanionService: @unchecked Sendable {
             ok: ok,
             site: site,
             errorCode: errorCode,
+            transcript: settings.current.saveTranscripts && ok ? transcript : nil,
             now: now
         )
+        onChange?()
+    }
+
+    public func clearSavedTranscripts() throws {
+        historyLock.lock()
+        defer { historyLock.unlock() }
+        try stats.clearTranscripts()
         onChange?()
     }
 

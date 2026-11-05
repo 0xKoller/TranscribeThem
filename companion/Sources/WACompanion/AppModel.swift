@@ -2,6 +2,7 @@ import CompanionCore
 import Foundation
 import Observation
 import ServiceManagement
+import AppKit
 
 @MainActor
 @Observable
@@ -11,15 +12,61 @@ final class AppModel {
     var settings: CompanionSettings
     var stats: StatsSnapshot
     var modelReady = false
-    var modelLine = "Cargando modelo Parakeet v3…"
+    var modelLine = L("Cargando modelo Parakeet v3…")
     var serverReady = false
-    var serverLine = "Iniciando…"
+    var serverLine = L("Iniciando…")
     var extensionVersion: String?
     var extensionBrowser: String?
     var extensionSeenAt: Date?
     var loginDetail = ""
     var loginError: String?
     var modelFailed = false
+    var historyError: String?
+
+    var nativeSelection = NativeModel(rawValue: UserDefaults.standard.string(forKey: "nativeModel") ?? "v3") ?? .v3
+    var nativeLocalPath = UserDefaults.standard.string(forKey: "nativeModelPath") ?? ""
+    var activeNativeName = ""
+    var nativeLoading = false
+    var nativeProgress: Double?
+    var nativeError: String?
+
+    func loadNativeModel(localURL: URL? = nil) {
+        guard !nativeLoading else { return }
+        let selection = nativeSelection
+        nativeLoading = true
+        nativeError = nil
+        nativeProgress = nil
+        modelFailed = false
+        Task { [self] in
+            do {
+                try await Transcriber.shared.loadModels(selection: selection, localURL: localURL) { [weak self] progress in
+                    Task { @MainActor in self?.nativeProgress = progress.fractionCompleted }
+                }
+                activeNativeName = selection.name + (localURL == nil ? "" : " · Local")
+                nativeLocalPath = localURL?.path ?? ""
+                UserDefaults.standard.set(selection.rawValue, forKey: "nativeModel")
+                UserDefaults.standard.set(nativeLocalPath, forKey: "nativeModelPath")
+                modelReady = true
+                modelLine = activeNativeName
+            } catch {
+                nativeError = error.localizedDescription
+                modelReady = await Transcriber.shared.ready
+                modelFailed = !modelReady
+            }
+            nativeLoading = false
+            nativeProgress = nil
+        }
+    }
+
+    func chooseLocalModel() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.message = L("Elegí la carpeta con los componentes Core ML y el vocabulario del modelo seleccionado.")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        loadNativeModel(localURL: url)
+    }
 
     init(service: CompanionService) {
         self.service = service
@@ -42,6 +89,21 @@ final class AppModel {
             extensionSeenAt = hello.seenAt
         }
         loginDetail = LoginItem.detail
+    }
+
+    func setSaveTranscripts(_ value: Bool) {
+        service.updateSettings(json: ["saveTranscripts": value])
+        refresh()
+    }
+
+    func clearSavedTranscripts() {
+        do {
+            try service.clearSavedTranscripts()
+            historyError = nil
+            refresh()
+        } catch {
+            historyError = L("No se pudieron borrar los textos. Reintentá.")
+        }
     }
 
     func setLanguage(_ value: String) {
@@ -117,13 +179,13 @@ enum LoginItem {
     static var detail: String {
         switch SMAppService.mainApp.status {
         case .enabled:
-            return "Se abre al iniciar sesión."
+            return L("Se abre al iniciar sesión.")
         case .requiresApproval:
-            return "Aceptala en Ajustes del Sistema → General → Ítems de inicio."
+            return L("Aceptala en Ajustes del Sistema → General → Ítems de inicio.")
         case .notRegistered:
-            return "No se abre sola al iniciar sesión."
+            return L("No se abre sola al iniciar sesión.")
         case .notFound:
-            return "Para el inicio de sesión, mové la app a Aplicaciones."
+            return L("Para el inicio de sesión, mové la app a Aplicaciones.")
         default:
             return ""
         }

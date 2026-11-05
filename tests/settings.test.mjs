@@ -29,10 +29,17 @@ assert.equal(ctx.waCompanionLanguage("auto"), "none");
 assert.equal(ctx.waWhisperLanguage("auto"), "es");
 assert.equal(ctx.waSiteId("https://web.whatsapp.com/send"), "whatsapp");
 assert.equal(ctx.waSiteId("https://example.com/chat"), "");
+for (const host of ["x.com", "www.x.com", "twitter.com", "mobile.twitter.com"]) {
+  assert.equal(ctx.waSiteId(`https://${host}/i/chat`), "x");
+}
+assert.equal(ctx.waSiteId("https://notx.com/i/chat"), "");
+assert.equal(ctx.waSiteId("https://x.com.evil.test/i/chat"), "");
+assert.equal(ctx.waSiteEnabled({ sites: { x: false } }, "x"), false);
+assert.equal(ctx.waSiteEnabled({}, "x"), true);
 assert.equal(ctx.waSiteEnabled({ sites: { whatsapp: false } }, "whatsapp"), false);
 assert.equal(ctx.waSiteEnabled({}, "whatsapp"), true);
 const sites = ctx.waNormalizeSites({ whatsapp: false, evil: true });
 assert.equal(sites.whatsapp, false);
 assert.equal(sites.evil, undefined);
-assert.equal(Object.keys(sites).join(","), "whatsapp");
+assert.equal(Object.keys(sites).join(","), "whatsapp,x");
 console.log("settings.test.mjs ok");

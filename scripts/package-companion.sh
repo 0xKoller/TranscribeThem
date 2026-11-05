@@ -7,6 +7,11 @@ BUILD_DIR="$COMPANION_DIR/build"
 APP_NAME="TranscribeThem.app"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME"
 
+if [[ ! -f "$DIR/icons/AppIcon.icns" ]]; then
+  echo "Missing app icon. Run npm run icons first." >&2
+  exit 1
+fi
+
 echo "Building release binary with Swift..."
 (cd "$COMPANION_DIR" && swift build -c release)
 BIN_DIR="$(cd "$COMPANION_DIR" && swift build -c release --show-bin-path)"
@@ -19,6 +24,9 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 cp "$BIN_DIR/WACompanion" "$APP_BUNDLE/Contents/MacOS/WACompanion"
 chmod +x "$APP_BUNDLE/Contents/MacOS/WACompanion"
 cp "$COMPANION_DIR/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
+cp -R "$COMPANION_DIR/Resources/en.lproj" "$COMPANION_DIR/Resources/es.lproj" "$APP_BUNDLE/Contents/Resources/"
+cp "$DIR/icons/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/"
+cp "$DIR/icons/MenuBarTemplate.png" "$DIR/icons/MenuBarTemplate@2x.png" "$APP_BUNDLE/Contents/Resources/"
 
 echo "TranscribeThem.app created successfully at:"
 echo "$APP_BUNDLE"

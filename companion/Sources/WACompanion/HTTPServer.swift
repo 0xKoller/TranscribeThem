@@ -132,8 +132,8 @@ public final class HTTPServer: @unchecked Sendable {
                 "status": "ok",
                 "ready": isReady,
                 "engine": "parakeet",
-                "model": "parakeet-tdt-0.6b-v3",
-                "version": "0.2.0",
+                "model": await transcriber.modelIdentifier,
+                "version": "0.3.0",
                 "processedCount": stats.processedCount,
                 "totalAudioSeconds": stats.totalAudioSeconds
             ]
@@ -168,7 +168,8 @@ public final class HTTPServer: @unchecked Sendable {
                 model: obj["model"] as? String ?? "",
                 ok: Self.bool(obj["ok"]) ?? false,
                 site: obj["site"] as? String ?? "whatsapp",
-                errorCode: obj["errorCode"] as? String ?? ""
+                errorCode: obj["errorCode"] as? String ?? "",
+                transcript: obj["transcript"] as? String
             )
             let stats = service.stats.snapshot()
             return json([
@@ -249,7 +250,8 @@ public final class HTTPServer: @unchecked Sendable {
                     engine: result.engine,
                     model: result.model,
                     ok: true,
-                    site: site
+                    site: site,
+                    transcript: result.text
                 )
                 let data = (try? JSONSerialization.data(withJSONObject: respObj, options: [.sortedKeys])) ?? Data()
                 corsHeaders["Content-Type"] = "application/json; charset=utf-8"

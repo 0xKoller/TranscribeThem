@@ -10,6 +10,7 @@ public struct JobRecord: Codable, Equatable, Sendable, Identifiable {
     public var ok: Bool
     public var site: String
     public var errorCode: String
+    public var transcript: String?
 
     public init(
         id: UUID = UUID(),
@@ -20,7 +21,8 @@ public struct JobRecord: Codable, Equatable, Sendable, Identifiable {
         model: String,
         ok: Bool,
         site: String = "whatsapp",
-        errorCode: String = ""
+        errorCode: String = "",
+        transcript: String? = nil
     ) {
         self.id = id
         self.at = at
@@ -31,10 +33,11 @@ public struct JobRecord: Codable, Equatable, Sendable, Identifiable {
         self.ok = ok
         self.site = site
         self.errorCode = errorCode
+        self.transcript = transcript
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, at, audioSeconds, transcribeMs, engine, model, ok, site, errorCode
+        case id, at, audioSeconds, transcribeMs, engine, model, ok, site, errorCode, transcript
     }
 
     public init(from decoder: Decoder) throws {
@@ -48,7 +51,8 @@ public struct JobRecord: Codable, Equatable, Sendable, Identifiable {
             model: try c.decode(String.self, forKey: .model),
             ok: try c.decode(Bool.self, forKey: .ok),
             site: try c.decodeIfPresent(String.self, forKey: .site) ?? "whatsapp",
-            errorCode: try c.decodeIfPresent(String.self, forKey: .errorCode) ?? ""
+            errorCode: try c.decodeIfPresent(String.self, forKey: .errorCode) ?? "",
+            transcript: try c.decodeIfPresent(String.self, forKey: .transcript)
         )
     }
 
@@ -63,6 +67,7 @@ public struct JobRecord: Codable, Equatable, Sendable, Identifiable {
         try c.encode(ok, forKey: .ok)
         try c.encode(site, forKey: .site)
         try c.encode(errorCode, forKey: .errorCode)
+        try c.encodeIfPresent(transcript, forKey: .transcript)
     }
 }
 
@@ -195,6 +200,15 @@ public struct StatsSnapshot: Equatable, Sendable {
         )
     }
 
+    public func recentActivity(
+        _ range: ActivityRange,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [JobRecord] {
+        guard let keys = Self.dayKeys(range, now: now, calendar: calendar) else { return recent }
+        return recent.filter { keys.contains(StatsStore.dayKey($0.at, calendar: calendar)) }
+    }
+
     public func weekBars(now: Date = Date(), calendar: Calendar = .current) -> [WeekBar] {
         guard let keys = Self.dayKeys(.week, now: now, calendar: calendar) else { return [] }
         return keys.map { key in
@@ -264,7 +278,7 @@ private struct StatsFile: Codable {
 public final class StatsStore: @unchecked Sendable {
     public static let recentLimit = 50
     public static let dayLimit = 400
-    public static let knownSites: Set<String> = ["whatsapp"]
+    public static let knownSites: Set<String> = Set(CompanionSettings.siteCatalog)
     public static let errorCodes: Set<String> = [
         "timeout", "no_audio", "model_loading", "decode", "http", "generic",
     ]
@@ -299,6 +313,7 @@ public final class StatsStore: @unchecked Sendable {
         ok: Bool,
         site: String = "whatsapp",
         errorCode: String = "",
+        transcript: String? = nil,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> StatsSnapshot {
@@ -318,7 +333,8 @@ public final class StatsStore: @unchecked Sendable {
             model: cleanModel,
             ok: ok,
             site: cleanSite,
-            errorCode: cleanError
+            errorCode: cleanError,
+            transcript: ok ? transcript : nil
         )
         file.jobs.insert(job, at: 0)
         if file.jobs.count > Self.recentLimit {
@@ -370,6 +386,17 @@ public final class StatsStore: @unchecked Sendable {
     public static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
+    /// Removes saved text while preserving activity and aggregate statistics.
+    public func clearTranscripts() throws {
+        lock.lock()
+        defer { lock.unlock() }
+        var next = file
+        for index in next.jobs.indices { next.jobs[index].transcript = nil }
+        let data = try CompanionJSON.encoder.encode(next)
+        try data.write(to: fileURL, options: .atomic)
+        file = next
     }
 
     public static func cleanSite(_ raw: String) -> String {

@@ -108,7 +108,6 @@ async function tryCompanionTranscribe(job, settings) {
     const data = await res.json();
     if (data && data.ok && typeof data.text === "string") {
       log("Companion transcribed:", {
-        text: data.text.slice(0, 80),
         audioSeconds: data.audioSeconds,
         transcribeMs: data.transcribeMs,
       });
@@ -290,6 +289,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         engine: msg.engine || "whisper",
         model: msg.model || "",
         ok: true,
+        transcript: msg.text,
         site: (slot && slot.site) || "unknown",
       });
     }

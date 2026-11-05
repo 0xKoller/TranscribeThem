@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 — 2026-11-05
+
+- Redesigned native Mac app with light/dark appearance and a shared waveform identity.
+- Dedicated engine/model controls, native model downloads, and compatible local model selection.
+- English/Spanish app language controls and richer activity statistics.
+- Optional local full-transcript history and deletion controls.
+- Illustrated drag-to-Applications installer.
+
+
 ## 0.2.0 — 2026-11-05
 
 - Transcripción local de notas de voz en X DMs, incluyendo su interfaz con Shadow DOM.

@@ -17,6 +17,7 @@ waInitSettingsUi({
   openAppBtn: document.getElementById("open-app"),
   enginesEl: document.getElementById("engines"),
   siteEl: document.getElementById("site-whatsapp"),
+  siteXEl: document.getElementById("site-x"),
   highlightEl: document.getElementById("highlight-words"),
   autoHintEl: document.getElementById("auto-hint"),
 });

@@ -20,4 +20,25 @@ assert.match(src, /engineMode/);
 assert.match(src, /highlightWords/);
 assert.match(src, /sites/);
 assert.match(src, /errorCode/);
+for (const enabled of [true, false, "unavailable"]) {
+  const posted = [];
+  const testContext = createContext({
+    URL, AbortSignal,
+    waGetSettings: async () => ({ companionPort: 8765 }),
+    fetch: async (url, options = {}) => {
+      if (url.endsWith("/v1/settings")) {
+        if (enabled === "unavailable") throw new Error("offline");
+        return { ok: true, json: async () => ({ settings: { saveTranscripts: enabled } }) };
+      }
+      assert.ok(url.startsWith("http://127.0.0.1:8765/"));
+      posted.push(JSON.parse(options.body));
+      return { ok: true, json: async () => ({ ok: true }) };
+    },
+  });
+  runInContext(src, testContext);
+  await testContext.waReportCompanionJob({ ok: true, transcript: "local private text", site: "x" });
+  assert.equal(posted.length, 1);
+  assert.equal(posted[0].site, "x");
+  assert.equal(posted[0].transcript, enabled === true ? "local private text" : undefined);
+}
 console.log("companion-sync.test.mjs ok");

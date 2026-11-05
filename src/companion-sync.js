@@ -100,7 +100,20 @@
 
   g.waReportCompanionJob = async function waReportCompanionJob(job) {
     try {
+      // Only send text to the local app after checking its current opt-in.
+      // This setting is owned by the Mac app, never overwritten by sync.
+      let transcript;
+      if (job.ok === true && typeof job.transcript === "string") {
+        try {
+          const response = await fetch(`${await base()}/v1/settings`, { signal: AbortSignal.timeout(800) });
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.settings && data.settings.saveTranscripts === true) transcript = job.transcript;
+          }
+        } catch (_) { /* preserve metadata reporting when settings are unavailable */ }
+      }
       await postJSON("/v1/jobs", {
+        transcript,
         audioSeconds: Number(job.audioSeconds) || 0,
         transcribeMs: Number(job.transcribeMs) || 0,
         engine: job.engine || "whisper",

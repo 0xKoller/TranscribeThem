@@ -5,15 +5,17 @@ import SwiftUI
 enum AppSection: String, CaseIterable, Identifiable {
     case home
     case activity
+    case models
     case settings
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .home: "Inicio"
-        case .activity: "Actividad"
-        case .settings: "Ajustes"
+        case .home: L("Inicio")
+        case .activity: L("Actividad")
+        case .models: L("Motor y modelos")
+        case .settings: L("Ajustes")
         }
     }
 
@@ -21,6 +23,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .home: "waveform"
         case .activity: "chart.bar"
+        case .models: "cpu"
         case .settings: "gearshape"
         }
     }
@@ -28,14 +31,39 @@ enum AppSection: String, CaseIterable, Identifiable {
 
 struct MainView: View {
     @Bindable var model: AppModel
+    var onNavigate: (String) -> Void = { _ in }
+    @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("appLanguage") private var appLanguage = "system"
+
+    var body: some View {
+        CompanionContent(model: model, appearance: $appearance, onNavigate: onNavigate)
+            .environment(\.locale, AppLanguage.locale(appLanguage))
+            .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
+    }
+}
+
+private struct CompanionContent: View {
+    @Bindable var model: AppModel
+    @Binding var appearance: String
+    @AppStorage("appLanguage") private var appLanguage = "system"
+    var onNavigate: (String) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: VoicePalette { VoicePalette(colorScheme) }
     @Environment(\.openURL) private var openURL
     @State private var section: AppSection? = .home
     @State private var range: ActivityRange = .week
+    @State private var activitySite = "all"
 
     var body: some View {
         NavigationSplitView {
             List(AppSection.allCases, selection: $section) { item in
-                Label(item.title, systemImage: item.symbol)
+                Label {
+                    Text(item.title)
+                } icon: {
+                    Image(systemName: item.symbol)
+                        .symbolRenderingMode(.hierarchical)
+                }
+                .tag(item)
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 168, ideal: 196, max: 230)
@@ -43,16 +71,25 @@ struct MainView: View {
             Group {
                 switch section ?? .home {
                 case .home:
-                    ScrollView { homeView().padding(28) }
+                    ScrollView { homeView().frame(maxWidth: 680).padding(24).frame(maxWidth: .infinity) }
                 case .activity:
-                    ScrollView { activityView().padding(28) }
+                    ScrollView { activityView().padding(24) }
+                case .models:
+                    ModelsView(model: model)
                 case .settings:
-                    settings
+                    SettingsContent(model: model, appearance: $appearance)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .foregroundStyle(palette.text)
+            .background(palette.canvas)
             .navigationTitle((section ?? .home).title)
+
         }
+        .onChange(of: appLanguage) { _, _ in onNavigate((section ?? .home).title) }
+        .environment(\.locale, AppLanguage.locale(appLanguage))
+        .onChange(of: section) { _, value in onNavigate((value ?? .home).title) }
+        .tint(palette.accent)
         .frame(minWidth: 720, minHeight: 480)
     }
 
@@ -61,132 +98,101 @@ struct MainView: View {
     }
 
     private func homeView() -> some View {
-        let bars = model.stats.weekBars()
-        return VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(headline)
-                    .font(.title2.weight(.semibold))
-                Text(homeSubtitle)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 24) {
+            HStack(alignment: .top, spacing: 16) {
+                BrandIcon()
+                    .frame(width: 64, height: 64)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(headline)
+                        .font(.title2.weight(.semibold))
+                    Text(homeSubtitle)
+                        .font(.callout)
+                        .foregroundStyle(palette.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !model.modelReady && !model.modelFailed {
+                        ProgressView().controlSize(.small)
+                            .accessibilityLabel(L("Cargando el modelo local"))
+                    }
+                    Button(L("Abrir WhatsApp Web"), systemImage: "arrow.up.right") {
+                        if let url = URL(string: "https://web.whatsapp.com") { openURL(url) }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .padding(.top, 6)
+                }
+                Spacer(minLength: 0)
             }
 
-            HStack(spacing: 10) {
-                StatusChip(ok: model.modelReady, title: "Modelo", value: modelValue)
-                StatusChip(ok: model.serverReady, title: "Servidor", value: model.serverReady ? "En línea" : "Detenido")
-                StatusChip(ok: model.extensionConnected, title: "Extensión", value: extensionValue)
-            }
+            Divider()
 
             todayStrip
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Últimos 7 días")
-                    .font(.headline)
-                weekChart(bars, height: 112)
+            DisclosureGroup(L("Detalles de conexión")) {
+                HStack(spacing: 10) {
+                    StatusChip(ok: model.modelReady, title: L("Modelo"), value: modelValue)
+                    StatusChip(ok: model.serverReady, title: L("Servidor"), value: model.serverReady ? L("En línea") : L("Detenido"))
+                    StatusChip(ok: model.extensionConnected, title: L("Extensión"), value: extensionValue)
+                }
+                .padding(.top, 8)
             }
-            .padding(14)
-            .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
+            .font(.callout)
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Personalización")
-                    .font(.headline)
-                ForEach(CompanionSettings.siteCatalog, id: \.self) { id in
-                    Toggle(
-                        id == "whatsapp" ? "Mostrar el botón en WhatsApp Web" : siteLabel(id),
-                        isOn: siteBinding(id)
-                    )
-                }
-                Text("Idioma")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Picker("Idioma", selection: languageBinding) {
-                    Text("Español").tag("es")
-                    Text("English").tag("en")
-                    Text("Automático").tag("auto")
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                Text("Motor")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Picker("Motor", selection: engineBinding) {
-                    Text("Automático").tag("auto")
-                    Text("Esta app").tag("companion")
-                    Text("Navegador").tag("browser")
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                Text(engineCaption)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if model.settings.languageMode == "auto" {
-                    Text("Parakeet detecta el idioma. Si transcribe el navegador, usa Español.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(14)
-            .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
-
-            Button("Abrir WhatsApp Web") {
-                if let url = URL(string: "https://web.whatsapp.com") {
-                    openURL(url)
-                }
-            }
-            .buttonStyle(.borderedProminent)
+            Label(model.settings.saveTranscripts ? L("Procesamiento local · Historial de texto activado") : L("Procesamiento local · Guardado de texto desactivado"), systemImage: "lock")
+                .font(.caption)
+                .foregroundStyle(palette.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var headline: String {
         if !model.serverReady {
-            return "Otra copia de la app está usando el puerto."
+            return L("Otra copia de la app está usando el puerto.")
         }
         if model.modelFailed {
-            return "No se pudo cargar el modelo."
+            return L("No se pudo cargar el modelo.")
         }
         if !model.modelReady {
-            return "Está bajando el modelo. La primera vez tarda."
+            return L("Está bajando el modelo. La primera vez tarda.")
         }
         if model.extensionSeenAt == nil {
-            return "Lista en esta Mac. Chrome todavía no se conectó."
+            return L("Tu Mac está lista.")
         }
         if !model.extensionConnected {
-            return "La extensión no avisa hace un rato. Abrí WhatsApp Web."
+            return L("Conectá el navegador.")
         }
-        return "Lista para transcribir en WhatsApp Web."
+        return L("Lista para transcribir")
     }
 
     private var homeSubtitle: String {
         if !model.serverReady {
-            return "Cerrá la otra copia y volvé a abrir esta."
+            return L("Cerrá la otra copia y volvé a abrir esta.")
         }
         if model.modelFailed {
-            return "Cerrá la app desde la barra de menú y volvé a abrirla."
+            return L("Cerrá la app desde la barra de menú y volvé a abrirla.")
         }
         if !model.modelReady {
-            return "La primera descarga queda en esta Mac."
+            return L("La primera descarga queda en esta Mac.")
         }
         if model.extensionSeenAt == nil {
-            return "Abrí WhatsApp Web en Chrome. Si no aparece el botón, instalá la extensión."
+            return L("Abrí WhatsApp Web en Chrome. Si no aparece el botón, instalá la extensión.")
         }
         if !model.extensionConnected {
-            return "Abrí WhatsApp Web para que la extensión vuelva a avisar."
+            return L("Sin señal reciente de la extensión. Abrí WhatsApp Web para volver a conectarla.")
         }
-        return "El botón está en las notas de voz."
+        return L("El botón está en las notas de voz.")
     }
 
     private var modelValue: String {
-        if model.modelReady { return "Listo" }
-        if model.modelFailed { return "No se pudo cargar" }
-        return "Cargando"
+        if model.modelReady { return L("Listo") }
+        if model.modelFailed { return L("No se pudo cargar") }
+        return L("Cargando")
     }
 
     private var extensionValue: String {
-        guard model.extensionSeenAt != nil else { return "Sin conexión" }
+        guard model.extensionSeenAt != nil else { return L("Sin conexión") }
         let version = model.extensionVersion.flatMap { $0.isEmpty ? nil : $0 }
-        let state = model.extensionConnected ? "Conectada" : "Sin señal reciente"
+        let state = model.extensionConnected ? L("Conectada") : L("Sin señal reciente")
         if let version { return "\(state) · v\(version)" }
         return state
     }
@@ -194,18 +200,17 @@ struct MainView: View {
     private var todayStrip: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                Metric(title: "Notas hoy", value: "\(today.notes)")
-                Metric(title: "Audio", value: formatAudio(today.audioSeconds))
-                Metric(title: "Velocidad", value: formatFactor(today.speed), caption: medianCaption(today.medianMs))
+                Metric(title: L("Notas hoy"), value: "\(today.notes)")
+                Metric(title: L("Audio"), value: formatAudio(today.audioSeconds))
             }
             if today.notes == 0 && today.fails == 0 {
-                Text("Todavía no hay notas hoy.")
+                Text(L("Todavía no hay notas hoy."))
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.secondary)
             } else if today.fails > 0 {
-                Text("\(today.fails) fallidas")
+                Text(LF("%ld fallidas", today.fails))
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.secondary)
             }
         }
     }
@@ -216,171 +221,145 @@ struct MainView: View {
         let empty = model.stats.processedCount == 0 && model.stats.failCount == 0
         return VStack(alignment: .leading, spacing: 18) {
             Picker("Rango", selection: $range) {
-                Text("Hoy").tag(ActivityRange.today)
-                Text("7 días").tag(ActivityRange.week)
-                Text("Todo").tag(ActivityRange.all)
+                Text(L("Hoy")).tag(ActivityRange.today)
+                Text(L("7 días")).tag(ActivityRange.week)
+                Text(L("Todo")).tag(ActivityRange.all)
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: 360)
             .labelsHidden()
 
             HStack(spacing: 12) {
-                Metric(title: "Notas", value: "\(summary.notes)")
-                Metric(title: "Audio", value: formatAudio(summary.audioSeconds))
-                Metric(title: "Velocidad", value: formatFactor(summary.speed), caption: speedCaption(summary))
+                Metric(title: L("Notas"), value: "\(summary.notes)")
+                Metric(title: L("Audio"), value: formatAudio(summary.audioSeconds))
+                Metric(title: L("Velocidad"), value: formatFactor(summary.speed), caption: speedCaption(summary))
             }
-            if summary.fails > 0 {
-                Text("\(summary.fails) fallidas")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                Metric(title: L("Completadas"), value: successRate(summary), caption: L("Del período seleccionado"))
+                Metric(title: L("Fallidas"), value: "\(summary.fails)")
+                Metric(title: L("Latencia mediana"), value: summary.medianMs.map(formatMs) ?? "—", caption: L("De las notas recientes"))
             }
             if range == .all {
-                Text("La velocidad y la mediana salen de las notas con tiempo guardado, no de todo el historial.")
+                Text(L("La velocidad y la mediana salen de las notas con tiempo guardado, no de todo el historial."))
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.secondary)
             }
 
-            Text("Últimos 7 días")
+            Text(L("Últimos 7 días"))
                 .font(.headline)
             weekChart(bars, height: 140)
 
             if empty {
-                Text("Todavía no hay notas. Transcribí una en WhatsApp Web.")
-                    .foregroundStyle(.secondary)
+                Text(L("Todavía no hay notas. Transcribí una en WhatsApp Web."))
+                    .foregroundStyle(palette.secondary)
             } else {
                 HStack(spacing: 16) {
-                    Text("En la app \(summary.parakeet)")
-                    Text("En el navegador \(summary.whisper)")
+                    Text(LF("En la app %ld", summary.parakeet))
+                    Text(LF("En el navegador %ld", summary.whisper))
                 }
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.secondary)
 
                 if summary.shortNotes + summary.mediumNotes + summary.longNotes > 0 {
-                    Text("Cortas \(summary.shortNotes) · medias \(summary.mediumNotes) · largas \(summary.longNotes)")
+                    Text(LF("Cortas %ld · medias %ld · largas %ld", summary.shortNotes, summary.mediumNotes, summary.longNotes))
                         .font(.callout)
-                        .foregroundStyle(.secondary)
-                    Text("Cortas, menos de 15 s. Medias, hasta 45 s. Largas, el resto.")
+                        .foregroundStyle(palette.secondary)
+                    Text(L("Cortas, menos de 15 s. Medias, hasta 45 s. Largas, el resto."))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.secondary)
                 }
 
                 recentList
             }
-            Text("Se guardan duración, motor y latencia. El texto y el audio no.")
+            Text(L("El audio no se guarda. El historial de texto es opcional y se configura en Ajustes."))
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var recentList: some View {
-        let groups = grouped(model.stats.recent)
+        let jobs = model.stats.recentActivity(range).filter { activitySite == "all" || $0.site == activitySite }
+        let groups = grouped(jobs)
         return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(L("Transcripciones recientes")).font(.headline)
+                Spacer()
+                Picker(L("Sitio"), selection: $activitySite) {
+                    Text(L("Todos los sitios")).tag("all")
+                    Text("WhatsApp").tag("whatsapp")
+                    Text("X").tag("x")
+                    Text(L("Otro")).tag("unknown")
+                }
+                .frame(maxWidth: 200)
+            }
+            Text(LF("Se conservan detalles de las últimas %ld notas. El filtro se aplica a ese historial.", StatsStore.recentLimit))
+                .font(.caption)
+                .foregroundStyle(palette.secondary)
+            if jobs.isEmpty {
+                Text(L("No hay notas guardadas para este período y sitio."))
+                    .foregroundStyle(palette.secondary)
+            }
             ForEach(groups, id: \.day) { group in
-                Text(dayTitle(group.day))
-                    .font(.headline)
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(group.jobs) { job in
-                        HStack {
-                            Text(job.at.formatted(date: .omitted, time: .shortened))
-                                .frame(width: 64, alignment: .leading)
-                                .foregroundStyle(.secondary)
-                            Text(siteLabel(job.site))
-                                .frame(width: 88, alignment: .leading)
-                            Text(job.ok ? formatAudio(job.audioSeconds) : "—")
-                                .frame(width: 88, alignment: .leading)
-                            Spacer()
-                            Text(jobLine(job))
-                                .foregroundStyle(job.ok ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red))
-                                .monospacedDigit()
+                Text(dayTitle(group.day)).font(.subheadline.weight(.semibold))
+                ForEach(group.jobs) { job in
+                    DisclosureGroup {
+                        Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 8) {
+                            GridRow { Text(L("Sitio")); Text(siteLabel(job.site)) }
+                            GridRow { Text(L("Fecha")); Text(job.at.formatted(date: .abbreviated, time: .standard)) }
+                            GridRow { Text(L("Duración del audio")); Text(formatAudio(job.audioSeconds)) }
+                            GridRow { Text(L("Procesamiento")); Text(formatMs(job.transcribeMs)) }
+                            GridRow { Text(L("Motor")); Text(job.engine == "parakeet" ? L("Parakeet · App") : job.engine == "whisper" ? L("Whisper · Navegador") : job.engine) }
+                            GridRow { Text(L("Modelo")); Text(job.model.isEmpty ? L("Sin datos") : job.model).textSelection(.enabled) }
+                            GridRow { Text(L("Resultado")); Text(job.ok ? L("Completada") : errorLabel(job.errorCode)) }
                         }
                         .font(.callout)
-                        .padding(.vertical, 6)
-                        Divider()
-                    }
-                }
-            }
-        }
-    }
-
-    private var settings: some View {
-        Form {
-            Section("Dónde aparece") {
-                ForEach(CompanionSettings.siteCatalog, id: \.self) { id in
-                    Toggle(siteLabel(id) == "WhatsApp" ? "WhatsApp Web" : siteLabel(id), isOn: siteBinding(id))
-                }
-                Text("Si lo apagás, el botón desaparece en ese sitio.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Cómo transcribe") {
-                Picker("Idioma", selection: languageBinding) {
-                    Text("Español").tag("es")
-                    Text("English").tag("en")
-                    Text("Automático").tag("auto")
-                }
-                .pickerStyle(.segmented)
-                if model.settings.languageMode == "auto" {
-                    Text("Parakeet detecta el idioma. Si transcribe el navegador, usa Español.")
+                        .padding(.vertical, 10)
+                        if let transcript = job.transcript {
+                            HStack {
+                                Text(L("Transcripción")).font(.headline)
+                                Spacer()
+                                Button(L("Copiar"), systemImage: "doc.on.doc") {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(transcript, forType: .string)
+                                }
+                            }
+                            ScrollView {
+                                Text(transcript)
+                                    .font(.body)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .frame(minHeight: 60, maxHeight: 240)
+                        } else {
+                            Text(L("El texto de esta nota no se guardó. Activá el historial local en Ajustes para las próximas notas."))
+                                .font(.caption)
+                                .foregroundStyle(palette.secondary)
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: job.ok ? "checkmark.circle" : "exclamationmark.circle")
+                                .foregroundStyle(job.ok ? palette.jade : .red)
+                                .accessibilityLabel(job.ok ? L("Completada") : L("Fallida"))
+                            Text(job.at.formatted(date: .omitted, time: .shortened)).monospacedDigit()
+                            Text(siteLabel(job.site)).frame(width: 76, alignment: .leading)
+                            Text(formatAudio(job.audioSeconds))
+                            Spacer()
+                            Text(jobLine(job)).foregroundStyle(palette.secondary).monospacedDigit()
+                        }
                         .font(.callout)
-                        .foregroundStyle(.secondary)
+                    }
+                    .padding(12)
+                    .background(palette.surface, in: RoundedRectangle(cornerRadius: 10))
                 }
-
-                Picker("Motor", selection: engineBinding) {
-                    Text("Automático").tag("auto")
-                    Text("Solo esta app").tag("companion")
-                    Text("Solo el navegador").tag("browser")
-                }
-                .pickerStyle(.radioGroup)
-                Text(engineCaption)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-
-                Picker("Modelo del navegador", selection: modelBinding) {
-                    Text("Small").tag(CompanionSettings.defaultModelId)
-                    Text("Medium").tag("Xenova/whisper-medium")
-                    Text("Turbo").tag("onnx-community/whisper-large-v3-turbo")
-                }
-                .pickerStyle(.radioGroup)
-                .disabled(model.settings.engineMode == "companion")
-                Text(model.settings.engineMode == "companion"
-                    ? "No se usa mientras el motor sea solo esta app."
-                    : "Whisper en el navegador, cuando esta app no transcribe.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("En la nota") {
-                Toggle("Mostrar el tiempo de cada nota", isOn: debugBinding)
-                Toggle("Resaltar la palabra mientras suena", isOn: highlightBinding)
-            }
-
-            Section("Esta app") {
-                Toggle("Abrir al iniciar sesión", isOn: launchBinding)
-                Text(model.loginError ?? model.loginDetail)
-                    .font(.callout)
-                    .foregroundStyle(model.loginError == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red))
-                Toggle("Abrir la ventana al iniciar", isOn: openAtLaunchBinding)
-            }
-
-            DisclosureGroup("Avanzado") {
-                Text("Puerto local: 8765")
-                    .foregroundStyle(.secondary)
             }
         }
-        .formStyle(.grouped)
     }
 
-    private var engineCaption: String {
-        switch model.settings.engineMode {
-        case "companion":
-            "Si la app no responde, la nota falla y no usa el navegador."
-        case "browser":
-            "Siempre transcribe en el navegador."
-        default:
-            "Usa esta app. Si no está, transcribe en el navegador."
-        }
+    private func successRate(_ summary: ActivitySummary) -> String {
+        let attempts = summary.notes + summary.fails
+        guard attempts > 0 else { return "—" }
+        return String(format: "%.0f%%", Double(summary.notes) / Double(attempts) * 100)
     }
 
     private func speedCaption(_ summary: ActivitySummary) -> String? {
@@ -389,14 +368,14 @@ struct MainView: View {
             parts.append(median)
         }
         if range == .all, let slow = summary.slowMs {
-            parts.append("la más lenta del grupo reciente: \(formatMs(slow))")
+            parts.append(LF("la más lenta del grupo reciente: %@", formatMs(slow)))
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private func medianCaption(_ value: Int?) -> String? {
         guard let value else { return nil }
-        return "mediana \(formatMs(value))"
+        return LF("mediana %@", formatMs(value))
     }
 
     private func jobLine(_ job: JobRecord) -> String {
@@ -419,49 +398,14 @@ struct MainView: View {
         return order.map { (day: $0, jobs: buckets[$0] ?? []) }
     }
 
-    private var languageBinding: Binding<String> {
-        Binding(get: { model.settings.languageMode }, set: { model.setLanguage($0) })
-    }
-
-    private var debugBinding: Binding<Bool> {
-        Binding(get: { model.settings.debugMode }, set: { model.setDebug($0) })
-    }
-
-    private var engineBinding: Binding<String> {
-        Binding(get: { model.settings.engineMode }, set: { model.setEngine($0) })
-    }
-
-    private var modelBinding: Binding<String> {
-        Binding(get: { model.settings.modelId }, set: { model.setModel($0) })
-    }
-
-    private var launchBinding: Binding<Bool> {
-        Binding(get: { model.settings.launchAtLogin }, set: { model.setLaunchAtLogin($0) })
-    }
-
-    private var openAtLaunchBinding: Binding<Bool> {
-        Binding(get: { model.settings.openAtLaunch }, set: { model.setOpenAtLaunch($0) })
-    }
-
-    private var highlightBinding: Binding<Bool> {
-        Binding(get: { model.settings.highlightWords }, set: { model.setHighlight($0) })
-    }
-
-    private func siteBinding(_ id: String) -> Binding<Bool> {
-        Binding(
-            get: { model.settings.sites[id] ?? true },
-            set: { model.setSite(id, $0) }
-        )
-    }
-
     private func weekChart(_ bars: [WeekBar], height: CGFloat) -> some View {
         let peak = Double(max(bars.map(\.notes).max() ?? 0, 1))
         return Chart(bars) { bar in
             BarMark(
-                x: .value("Día", shortDay(bar.day)),
-                y: .value("Notas", bar.notes)
+                x: .value(L("Día"), shortDay(bar.day)),
+                y: .value(L("Notas"), bar.notes)
             )
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(palette.blue.gradient)
             .cornerRadius(3)
         }
         .chartYScale(domain: 0...peak)
@@ -473,6 +417,8 @@ struct MainView: View {
 }
 
 private struct StatusChip: View {
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: VoicePalette { VoicePalette(colorScheme) }
     var ok: Bool
     var title: String
     var value: String
@@ -480,12 +426,12 @@ private struct StatusChip: View {
     var body: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(ok ? Color.green : Color.orange)
+                .fill(ok ? palette.jade : palette.secondary)
                 .frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.secondary)
                 Text(value)
                     .font(.callout.weight(.medium))
                     .lineLimit(2)
@@ -495,11 +441,13 @@ private struct StatusChip: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
-        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
+        .background(palette.surface, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
 private struct Metric: View {
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: VoicePalette { VoicePalette(colorScheme) }
     var title: String
     var value: String
     var caption: String? = nil
@@ -508,18 +456,18 @@ private struct Metric: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.secondary)
             Text(value)
                 .font(.title2.monospacedDigit())
             if let caption {
                 Text(caption)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
+        .background(palette.surface, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -565,20 +513,20 @@ private func dayTitle(_ key: String) -> String {
     components.month = month
     components.day = day
     let date = Calendar.current.date(from: components) ?? Date()
-    return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+    return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.currentLocale))
 }
 
 private func siteLabel(_ id: String) -> String {
-    id == "whatsapp" ? "WhatsApp" : "Otro"
+    id == "whatsapp" ? "WhatsApp" : id == "x" ? "X" : L("Otro")
 }
 
 private func errorLabel(_ code: String) -> String {
     switch code {
-    case "timeout": "Tardó demasiado"
-    case "no_audio": "Sin audio"
-    case "model_loading": "Modelo cargando"
-    case "decode": "No se pudo leer"
-    case "http": "La app no respondió"
-    default: "Falló"
+    case "timeout": L("Tardó demasiado")
+    case "no_audio": L("Sin audio")
+    case "model_loading": L("Modelo cargando")
+    case "decode": L("No se pudo leer")
+    case "http": L("La app no respondió")
+    default: L("Falló")
     }
 }

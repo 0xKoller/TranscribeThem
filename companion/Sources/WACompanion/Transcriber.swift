@@ -34,6 +34,8 @@ public actor Transcriber {
     private var manager: AsrManager?
     private var isReady: Bool = false
     private var isLoading: Bool = false
+    private var loadedModelID = "parakeet-tdt-0.6b-v3"
+    public var modelIdentifier: String { loadedModelID }
     private var stats = Stats()
 
     public init() {}
@@ -46,28 +48,34 @@ public actor Transcriber {
         return stats
     }
 
-    nonisolated private func fetchAndLoadModels() async throws -> AsrManager {
-        let models = try await AsrModels.downloadAndLoad(version: .v3)
+    nonisolated private func fetchAndLoadModels(selection: NativeModel, localURL: URL?, progress: ProgressHandler?) async throws -> AsrManager {
+        let models: AsrModels
+        if let localURL {
+            models = try AsrModels.loadLocal(from: localURL, version: selection.version)
+        } else {
+            models = try await AsrModels.downloadAndLoad(version: selection.version, progressHandler: progress)
+        }
         let asr = AsrManager(config: .default)
         try await asr.loadModels(models)
         return asr
     }
 
-    public func loadModels() async throws {
-        if isReady || isLoading {
-            return
+    func loadModels(selection: NativeModel = .v3, localURL: URL? = nil, progress: ProgressHandler? = nil) async throws {
+        guard !isLoading else {
+            throw NSError(domain: "Transcriber", code: 3, userInfo: [NSLocalizedDescriptionKey: "A model is already loading"])
         }
         isLoading = true
 
         do {
             let t0 = ContinuousClock.now
-            let asr = try await fetchAndLoadModels()
+            let asr = try await fetchAndLoadModels(selection: selection, localURL: localURL, progress: progress)
 
             let d = t0.duration(to: .now)
             let ms = Int(d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000)
-            NSLog("[WACompanion] Parakeet v3 models loaded in %d ms", ms)
+            NSLog("[WACompanion] %@ loaded in %d ms", selection.name, ms)
 
             self.manager = asr
+            self.loadedModelID = selection.identifier + (localURL == nil ? "" : "-local")
             self.isReady = true
             self.isLoading = false
         } catch {
@@ -116,6 +124,7 @@ public actor Transcriber {
             throw NSError(domain: "Transcriber", code: 1, userInfo: [NSLocalizedDescriptionKey: "Model not loaded yet"])
         }
 
+        let resultModelID = loadedModelID
         let mime = (mimeType ?? "").lowercased()
         let ext: String
         if mime.contains("ogg") || mime.contains("opus") {
@@ -181,7 +190,7 @@ public actor Transcriber {
             audioSeconds: asrResult.duration,
             transcribeMs: transcribeMs,
             engine: "parakeet",
-            model: "parakeet-tdt-0.6b-v3",
+            model: resultModelID,
             decoder: decoder,
             words: words
         )

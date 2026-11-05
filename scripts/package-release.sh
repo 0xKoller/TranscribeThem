@@ -21,24 +21,20 @@ read_me() {
   cat <<'EOF'
 TranscribeThem
 
-La extensión funciona sola con Whisper; la app para Mac es opcional y usa Parakeet.
-Chrome Web Store todavía no publica la extensión.
+The Chrome extension works independently with Whisper. The Mac app is optional.
+See INSTALLATION.md for the complete guide and third-party notices for licenses.
 
-Extensión
-1. Descomprimí el ZIP.
-2. En Chrome abrí chrome://extensions
-3. Activá Modo de desarrollador.
-4. Cargar descomprimida y elegí la carpeta que tiene manifest.json.
-5. Abrí https://web.whatsapp.com o https://x.com/i/chat y recargá la pestaña.
-6. En una nota de voz, tocá Transcribir. En X aparece al pasar el cursor junto a las acciones del audio.
-7. Después de actualizar la extensión, recargá también las pestañas de WhatsApp y X.
+Chrome extension
+1. Unzip the archive and open chrome://extensions.
+2. Enable Developer mode, choose Load unpacked, and select the extracted folder.
+3. Reload WhatsApp Web and X tabs after installing or updating.
 
-App para Mac (Apple Silicon, macOS 14 o más nuevo)
-1. Abrí el DMG y arrastrá TranscribeThem a Aplicaciones.
-2. La app no está notarizada. Si macOS la bloquea, revisá Configuración del Sistema > Privacidad y seguridad > Abrir de todos modos.
-3. Queda en la barra de menú. La primera vez baja el modelo en esta Mac.
+Mac app (Apple Silicon, macOS 14+)
+1. Open the DMG and drag TranscribeThem to Applications.
+2. The app is not notarized. If blocked, use System Settings > Privacy & Security > Open Anyway.
+3. Choose your language in Settings and your model in Engine & Models.
+4. Optional full transcript history can be enabled and cleared in Settings.
 
-La ventana de la app muestra el estado. No tiene un tutorial adentro.
 EOF
 }
 
@@ -49,12 +45,13 @@ rm -rf "$DIST"
 mkdir -p "$DIST/ext-root/$EXT_DIR_NAME" "$DIST/dmg-root"
 
 cp "$DIR/manifest.json" "$DIST/ext-root/$EXT_DIR_NAME/"
-cp -R "$DIR/icons" "$DIR/src" "$DIR/vendor" "$DIST/ext-root/$EXT_DIR_NAME/"
+cp -R "$DIR/src" "$DIR/vendor" "$DIST/ext-root/$EXT_DIR_NAME/"
+mkdir -p "$DIST/ext-root/$EXT_DIR_NAME/icons"
+cp "$DIR/icons/icon16.png" "$DIR/icons/icon32.png" "$DIR/icons/icon48.png" "$DIR/icons/icon128.png" "$DIST/ext-root/$EXT_DIR_NAME/icons/"
 find "$DIST/ext-root" -name '*.map' -delete
 find "$DIST/ext-root" -name '.DS_Store' -delete
 read_me > "$DIST/ext-root/$EXT_DIR_NAME/LEEME.txt"
-cp "$DIR/docs/INSTALLATION.md" "$DIST/ext-root/$EXT_DIR_NAME/INSTALLATION.md"
-cp "$DIR/LICENSE" "$DIR/THIRD_PARTY_NOTICES.md" "$DIST/ext-root/$EXT_DIR_NAME/"
+cp "$DIR/docs/INSTALLATION.md" "$DIR/LICENSE" "$DIR/THIRD_PARTY_NOTICES.md" "$DIST/ext-root/$EXT_DIR_NAME/"
 cp -R "$DIR/third-party-licenses" "$DIST/ext-root/$EXT_DIR_NAME/"
 
 rm -f "$ZIP"
@@ -80,14 +77,14 @@ codesign --force --deep --sign - "$APP_SRC"
 codesign --verify --strict "$APP_SRC"
 
 cp -R "$APP_SRC" "$DIST/dmg-root/$APP_NAME"
-read_me > "$DIST/dmg-root/LEEME.txt"
-cp "$DIR/docs/INSTALLATION.md" "$DIST/dmg-root/INSTALLATION.md"
-cp "$DIR/LICENSE" "$DIR/THIRD_PARTY_NOTICES.md" "$DIST/dmg-root/"
-cp -R "$DIR/third-party-licenses" "$DIST/dmg-root/"
+read_me > "$DIST/dmg-root/.LEEME.txt"
+mkdir -p "$DIST/dmg-root/.background"
+swift "$DIR/scripts/dmg-background.swift" "$DIST/dmg-root/.background/installer.png"
 
 rm -f "$RAW" "$DMG"
 hdiutil create \
-  -volname "TranscribeThem" \
+  -volname "Install TranscribeThem" \
+  -fs HFS+ \
   -srcfolder "$DIST/dmg-root" \
   -ov \
   -format UDRW \
@@ -114,9 +111,16 @@ if [[ ! -L "$MOUNT/Applications" ]]; then
   exit 1
 fi
 
+DMG_TOOLS="$DIR/companion/build/dmg-tools"
+python3 -m venv "$DMG_TOOLS"
+"$DMG_TOOLS/bin/pip" install --disable-pip-version-check -q -r "$DIR/scripts/dmg-requirements.txt"
+"$DMG_TOOLS/bin/python" "$DIR/scripts/layout-dmg.py" "$MOUNT"
+sync
 hdiutil detach "$MOUNT"
 MOUNT=""
 trap - EXIT
+
+python3 "$DIR/scripts/dmg-autoopen.py" "$RAW"
 
 hdiutil convert "$RAW" -format UDZO -ov -o "$DMG"
 rm -f "$RAW"

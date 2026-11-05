@@ -1,6 +1,6 @@
-# Install TranscribeThem 0.2.0
+# Install TranscribeThem 0.3.0
 
-This guide takes you from downloading TranscribeThem to transcribing your first WhatsApp or X DM voice note. No developer tools, API keys, or paid transcription account are needed. The app interface currently uses Spanish; this guide includes the labels you will see.
+This guide takes you from downloading TranscribeThem to transcribing your first WhatsApp or X DM voice note. No developer tools, API keys, or paid transcription account are needed. The Mac app supports English and Spanish. Change the interface language in Settings; this guide also includes Spanish labels where useful.
 
 ## 1. Choose your setup and download
 
@@ -13,24 +13,24 @@ Requirements:
 - For the Mac app: macOS 14 or later and an Apple Silicon chip (M1 or newer). Check **Apple menu → About This Mac**. This DMG does not support Intel Macs, Windows, or Linux; use the extension without the app on those systems.
 - Internet access for the initial model download. Keep enough free disk space for model caches; larger models use more disk space and memory.
 
-Download from the [official v0.2.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.2.0):
+Download from the [official v0.3.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.3.0):
 
-- [Chrome extension ZIP](https://github.com/0xKoller/TranscribeThem/releases/download/v0.2.0/TranscribeThem-extension-0.2.0.zip)
-- [Mac app DMG](https://github.com/0xKoller/TranscribeThem/releases/download/v0.2.0/TranscribeThem-0.2.0.dmg)
-- [SHA-256 checksums](https://github.com/0xKoller/TranscribeThem/releases/download/v0.2.0/SHA256SUMS.txt) (optional verification)
+- [Chrome extension ZIP](https://github.com/0xKoller/TranscribeThem/releases/download/v0.3.0/TranscribeThem-extension-0.3.0.zip)
+- [Mac app DMG](https://github.com/0xKoller/TranscribeThem/releases/download/v0.3.0/TranscribeThem-0.3.0.dmg)
+- [SHA-256 checksums](https://github.com/0xKoller/TranscribeThem/releases/download/v0.3.0/SHA256SUMS.txt) (optional verification)
 
 Choose the named extension ZIP, **not GitHub's “Source code (zip)”**. The source archive needs a build step and is not ready to load in Chrome.
 
 ## 2. Install the Chrome extension
 
-1. Unzip `TranscribeThem-extension-0.2.0.zip`. On macOS, double-click it in Finder; on Windows, use **Extract All**.
+1. Unzip `TranscribeThem-extension-0.3.0.zip`. On macOS, double-click it in Finder; on Windows, use **Extract All**.
 2. Move the extracted folder somewhere permanent, such as a `Chrome Extensions` folder inside Documents. Chrome reads the extension from this folder, so keep it after installation.
 3. Open the extracted folder and check that it contains `manifest.json`, `src`, `icons`, and `vendor`. If there is another folder inside, use the inner folder that directly contains `manifest.json`.
 4. Open Chrome. Paste `chrome://extensions` into the address bar and press Enter.
 5. Turn on **Developer mode** in the top-right corner. Keep it enabled while using this unpacked extension.
 6. Click **Load unpacked** (Spanish Chrome: **Cargar descomprimida**).
 7. Select the folder that directly contains `manifest.json`, then confirm the selection.
-8. Check that a **TranscribeThem** card appears, its switch is enabled, and its version is **0.2.0**.
+8. Check that a **TranscribeThem** card appears, its switch is enabled, and its version is **0.3.0**.
 9. Click Chrome's puzzle-piece **Extensions** button, then pin TranscribeThem so its icon is easy to find.
 10. Open [WhatsApp Web](https://web.whatsapp.com), sign in if needed, and **reload the tab** if it was already open.
 
@@ -40,7 +40,7 @@ This follows Chrome's [official unpacked-extension installation flow](https://su
 
 Skip to section 4 if you are using only the extension.
 
-1. Open `TranscribeThem-0.2.0.dmg` in Finder.
+1. Open `TranscribeThem-0.3.0.dmg` in Finder.
 2. Drag **TranscribeThem.app** onto the **Applications** shortcut in the disk image.
 3. Wait for the copy to finish, then eject the TranscribeThem disk image from Finder's sidebar.
 4. Open **Finder → Applications → TranscribeThem**. Run the installed copy, not the copy inside the DMG.
@@ -148,3 +148,11 @@ Both files should report **OK**. If you only downloaded one artifact, the other 
 ## Need help?
 
 [Open an issue](https://github.com/0xKoller/TranscribeThem/issues) with your operating system, Chrome version, extension version, selected engine, and exact error. Avoid attaching private voice notes or conversations.
+
+## New in 0.3.0: app preferences, models, and local history
+
+- The Mac app follows the system appearance and supports light and dark mode.
+- Open Settings to select the app language (System, English, or Spanish), separately from the transcription language.
+- Open Engine & Models to select browser Whisper (Small, Medium, Turbo) or native Parakeet (v3, v2, or Ultra). Download a native model or choose a compatible local CoreML model folder. Arbitrary model formats are not supported.
+- Activity shows site, timing, engine, and result details. Full transcript history is optional, stored locally, and disabled by default. Enable it in Settings to save future transcripts; clear saved text there when needed.
+- The DMG uses a white illustrated background. Drag the app onto Applications to install.

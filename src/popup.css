@@ -1,12 +1,30 @@
+/* Keep these semantic roles aligned with VoiceTheme.swift. */
 :root {
-  color-scheme: dark;
-  --bg: #111b21;
-  --card: #1c272d;
-  --ink: #e9edef;
-  --muted: #8696a0;
-  --line: #2a3942;
-  --green: #00a884;
-  --danger: #f15c4c;
+  color-scheme: light dark;
+  --bg: #f4f0e9;
+  --card: #fffcf7;
+  --ink: #282320;
+  --muted: #696158;
+  --line: #dcd5cc;
+  --accent: #6259a6;
+  --success: #386b59;
+  --danger: #b33332;
+  --warning: #855b13;
+  --signature: linear-gradient(110deg, #e8b86d, #ee9685 48%, #a5a7f2);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #191817;
+    --card: #242220;
+    --ink: #f4f0e9;
+    --muted: #b6aea3;
+    --line: #393532;
+    --accent: #a5a7f2;
+    --success: #88bbaa;
+    --danger: #ff9993;
+    --warning: #e8c17e;
+  }
 }
 
 * {
@@ -24,7 +42,7 @@ body {
   padding: 16px 16px 18px;
   background: var(--bg);
   color: var(--ink);
-  font: 13px/1.4 "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 header {
@@ -91,8 +109,7 @@ label.debug-toggle {
 }
 
 .companion-card.is-online .dot {
-  background: #25d366;
-  box-shadow: 0 0 6px rgba(37, 211, 102, 0.5);
+  background: var(--success);
 }
 
 .companion-card.is-offline .dot {
@@ -150,7 +167,7 @@ dd {
 }
 
 dd.yes {
-  color: var(--green);
+  color: var(--success);
 }
 
 dd.no {
@@ -181,7 +198,7 @@ dd.no {
   padding: 8px 10px;
   border-radius: 8px;
   background: rgba(255, 184, 0, 0.12);
-  color: #ffb800;
+  color: var(--warning);
   font-size: 12px;
 }
 
@@ -222,13 +239,13 @@ dd.no {
 }
 
 .model-card.is-selected {
-  border-color: var(--green);
-  box-shadow: inset 0 0 0 1px var(--green);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .model-card input {
   margin: 3px 0 0;
-  accent-color: var(--green);
+  accent-color: var(--accent);
 }
 
 .model-card-body {
@@ -246,7 +263,7 @@ dd.no {
 
 .model-card-title em {
   margin-left: 8px;
-  color: var(--green);
+  color: var(--accent);
   font-style: normal;
   font-size: 10px;
   font-weight: 700;
@@ -276,7 +293,7 @@ dd.no {
   height: 100%;
   width: 0;
   border-radius: inherit;
-  background: var(--green);
+  background: var(--signature);
   transition: width 0.2s ease;
 }
 
@@ -297,7 +314,7 @@ dd.no {
   border: 0;
   padding: 0;
   background: none;
-  color: var(--green);
+  color: var(--accent);
   font: inherit;
   font-weight: 650;
   cursor: pointer;
@@ -305,4 +322,27 @@ dd.no {
 
 .link-btn:hover {
   text-decoration: underline;
+}
+
+header::before {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 4px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  background: var(--signature);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+input {
+  accent-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar { transition: none; }
 }

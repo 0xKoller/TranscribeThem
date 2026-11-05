@@ -288,13 +288,28 @@ const DOWNLOAD_ICON =
   "M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3a1 1 0 1 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42L11 12.59V4a1 1 0 0 1 1-1zM5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z";
 const COPY_ICON =
   "M9 7a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V7zm2 0v9h7V7h-7zM6 9a1 1 0 0 0-1 1v9a2 2 0 0 0 2 2h8a1 1 0 1 0 0-2H7v-9a1 1 0 0 0-1-1z";
-// Four filled bars, each its own rect so the busy state can move them.
+// Stylized “Ko-ller” envelope, matching icons/transcribethem.svg.
 const TRANSCRIBE_ICON = [
-  [3, 9, 3, 6],
-  [8, 5, 3, 14],
-  [13, 4, 3, 16],
-  [18, 7, 3, 10],
+  [2.05, 11.25, 0.7, 1.5],
+  [3.25, 10.5, 0.7, 3],
+  [4.45, 9, 0.7, 6],
+  [5.65, 7, 0.7, 10],
+  [6.85, 5, 0.7, 14],
+  [8.05, 6, 0.7, 12],
+  [9.25, 8, 0.7, 8],
+  [10.45, 10, 0.7, 4],
+  [11.65, 11, 0.7, 2],
+  [12.85, 10.5, 0.7, 3],
+  [14.05, 9, 0.7, 6],
+  [15.25, 7, 0.7, 10],
+  [16.45, 8, 0.7, 8],
+  [17.65, 9.5, 0.7, 5],
+  [18.85, 10.5, 0.7, 3],
+  [20.05, 11, 0.7, 2],
+  [21.25, 11.5, 0.7, 1],
 ];
+
+let barsIconSequence = 0;
 
 function barsIcon(bars) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -302,17 +317,36 @@ function barsIcon(bars) {
   svg.setAttribute("width", "16");
   svg.setAttribute("height", "16");
   svg.setAttribute("aria-hidden", "true");
-  for (const [x, y, w, h] of bars) {
+  const gradientId = `wa-t-voice-${++barsIconSequence}`;
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+  gradient.setAttribute("id", gradientId);
+  gradient.setAttribute("gradientUnits", "userSpaceOnUse");
+  gradient.setAttribute("x1", "2.05");
+  gradient.setAttribute("x2", "21.95");
+  gradient.setAttribute("y1", "0");
+  gradient.setAttribute("y2", "0");
+  for (const [offset, color] of [["0", "#E8B86D"], ["0.48", "#EE9685"], ["1", "#A5A7F2"]]) {
+    const stop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+    stop.setAttribute("offset", offset);
+    stop.setAttribute("stop-color", color);
+    gradient.appendChild(stop);
+  }
+  defs.appendChild(gradient);
+  for (const [index, [x, y, w, h]] of bars.entries()) {
     const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     rect.setAttribute("class", "wa-t-bar");
     rect.setAttribute("x", String(x));
     rect.setAttribute("y", String(y));
     rect.setAttribute("width", String(w));
     rect.setAttribute("height", String(h));
-    rect.setAttribute("rx", "0.6");
-    rect.setAttribute("fill", "currentColor");
+    rect.setAttribute("rx", "0.35");
+    rect.style.animationDelay = `${-index * 0.06}s`;
+    rect.setAttribute("fill", `url(#${gradientId})`);
     svg.appendChild(rect);
   }
+  // Gradient definition follows the animated bars.
+  svg.appendChild(defs);
   return svg;
 }
 

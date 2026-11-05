@@ -6,10 +6,10 @@ Transcribí notas de voz de WhatsApp Web y X DMs en tu dispositivo. Extensión d
 
 ## Descargar e instalar
 
-Descargá los archivos del [release v0.2.0](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.2.0):
+Descargá los archivos del [release v0.3.0](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.3.0):
 
-- **TranscribeThem-extension-0.2.0.zip**: extensión para Chrome 113 o superior. Descomprimí el ZIP, abrí `chrome://extensions`, activá **Modo de desarrollador**, elegí **Cargar descomprimida** y seleccioná la carpeta que contiene `manifest.json`.
-- **TranscribeThem-0.2.0.dmg**: app opcional para Mac con Apple Silicon y macOS 14 o superior. Abrí el DMG, arrastrá TranscribeThem a Aplicaciones y abrila. La app usa firma ad hoc; no está firmada con Developer ID ni notarizada. Si macOS la bloquea, revisá **Configuración del Sistema → Privacidad y seguridad → Abrir de todos modos**.
+- **TranscribeThem-extension-0.3.0.zip**: extensión para Chrome 113 o superior. Descomprimí el ZIP, abrí `chrome://extensions`, activá **Modo de desarrollador**, elegí **Cargar descomprimida** y seleccioná la carpeta que contiene `manifest.json`.
+- **TranscribeThem-0.3.0.dmg**: app opcional para Mac con Apple Silicon y macOS 14 o superior. Abrí el DMG, arrastrá TranscribeThem a Aplicaciones y abrila. La app usa firma ad hoc; no está firmada con Developer ID ni notarizada. Si macOS la bloquea, revisá **Configuración del Sistema → Privacidad y seguridad → Abrir de todos modos**.
 
 Abrí o recargá [WhatsApp Web](https://web.whatsapp.com) después de instalar la extensión y tocá **Transcribir** en una nota de voz. No hace falta reproducirla. No se envía ningún mensaje.
 
@@ -61,7 +61,7 @@ Los archivos quedan en `dist/`. Los modelos se descargan en ejecución y no est�
 
 ## Limitaciones
 
-Versión 0.2.0. Las transcripciones pueden contener errores. Cambios en la interfaz de WhatsApp o X pueden afectar la extensión. No se distribuye todavía en Chrome Web Store. El instalador de Mac se publica para Apple Silicon.
+Versión 0.3.0. Las transcripciones pueden contener errores. Cambios en la interfaz de WhatsApp o X pueden afectar la extensión. No se distribuye todavía en Chrome Web Store. El instalador de Mac se publica para Apple Silicon.
 
 ## Licencia
 

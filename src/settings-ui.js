@@ -52,6 +52,7 @@
       companionHintEl,
       enginesEl,
       siteEl,
+      siteXEl,
       highlightEl,
       autoHintEl,
     } = els;
@@ -235,10 +236,11 @@
         if (g.waPushCompanionSettings) await g.waPushCompanionSettings();
       });
     }
-    if (siteEl) {
-      siteEl.addEventListener("change", async () => {
+    for (const [id, element] of [["whatsapp", siteEl], ["x", siteXEl]]) {
+      if (!element) continue;
+      element.addEventListener("change", async () => {
         const current = await waGetSettings();
-        await waSetSettings({ sites: Object.assign({}, current.sites, { whatsapp: siteEl.checked }) });
+        await waSetSettings({ sites: Object.assign({}, current.sites, { [id]: element.checked }) });
         if (g.waPushCompanionSettings) await g.waPushCompanionSettings();
       });
     }
@@ -361,6 +363,7 @@
     if (debugEl) debugEl.checked = settings.debugMode === true;
     if (highlightEl) highlightEl.checked = settings.highlightWords !== false;
     if (siteEl) siteEl.checked = !settings.sites || settings.sites.whatsapp !== false;
+    if (siteXEl) siteXEl.checked = !settings.sites || settings.sites.x !== false;
     selectCard(settings.modelId);
     renderStatus(settings, null);
     if (settings.lastError) showError(settings.lastError);

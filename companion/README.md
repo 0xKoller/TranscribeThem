@@ -27,7 +27,7 @@ La primera ejecución descarga el modelo desde Hugging Face. AVFoundation decodi
 
 El servidor escucha en `127.0.0.1:8765`.
 
-- `GET /health`: estado, versión `0.2.0`, modelo y estadísticas.
+- `GET /health`: estado, versión `0.3.0`, modelo y estadísticas.
 - `GET /v1/settings`, `POST /v1/settings`: ajustes compartidos.
 - `POST /v1/hello`: presencia de la extensión.
 - `POST /v1/jobs`: estadísticas de transcripción, sin el texto.
@@ -35,3 +35,7 @@ El servidor escucha en `127.0.0.1:8765`.
 - `POST /transcribe`: audio binario o JSON con `audioBase64`, `mimeType` y `language`; devuelve texto, duración, motor y tiempos de palabras.
 
 Se conserva la ruta local `~/Library/Application Support/WA Local Transcribe/` para compatibilidad con instalaciones previas. No se persisten las transcripciones en las estadísticas; el último texto puede permanecer en memoria durante la ejecución. Los archivos temporales de audio se eliminan al finalizar la transcripción.
+
+## Interface and local history
+
+The app includes Home, Activity, Engine & Models, and Settings. Choose English, Spanish, or the system language in Settings. Full transcript history is optional and stays on this Mac; it is disabled by default. Engine & Models supports downloading Parakeet v3/v2/Ultra or choosing a compatible local CoreML model folder.

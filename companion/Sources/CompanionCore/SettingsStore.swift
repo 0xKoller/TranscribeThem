@@ -34,6 +34,7 @@ public struct CompanionSettings: Codable, Equatable, Sendable {
     public var sites: [String: Bool]
     public var openAtLaunch: Bool
     public var highlightWords: Bool
+    public var saveTranscripts: Bool
 
     public static let defaultModelId = "onnx-community/whisper-small"
     public static let allowedModelIds: Set<String> = [
@@ -45,7 +46,7 @@ public struct CompanionSettings: Codable, Equatable, Sendable {
         "onnx-community/whisper-medium": "Xenova/whisper-medium",
     ]
     public static let engineModes: Set<String> = ["auto", "companion", "browser"]
-    public static let siteCatalog = ["whatsapp"]
+    public static let siteCatalog = ["whatsapp", "x"]
 
     public init(
         languageMode: String,
@@ -56,9 +57,10 @@ public struct CompanionSettings: Codable, Equatable, Sendable {
         launchAtLogin: Bool,
         updatedAt: Date,
         engineMode: String = "auto",
-        sites: [String: Bool] = ["whatsapp": true],
+        sites: [String: Bool] = ["whatsapp": true, "x": true],
         openAtLaunch: Bool = false,
-        highlightWords: Bool = true
+        highlightWords: Bool = true,
+        saveTranscripts: Bool = false
     ) {
         self.languageMode = languageMode
         self.modelId = modelId
@@ -71,6 +73,7 @@ public struct CompanionSettings: Codable, Equatable, Sendable {
         self.sites = sites
         self.openAtLaunch = openAtLaunch
         self.highlightWords = highlightWords
+        self.saveTranscripts = saveTranscripts
     }
 
     public static func fresh(now: Date = Date()) -> CompanionSettings {
@@ -110,7 +113,7 @@ public struct CompanionSettings: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case languageMode, modelId, useCompanion, debugMode, polishEnabled, launchAtLogin, updatedAt
-        case engineMode, sites, openAtLaunch, highlightWords
+        case engineMode, sites, openAtLaunch, highlightWords, saveTranscripts
     }
 
     public init(from decoder: Decoder) throws {
@@ -138,7 +141,8 @@ public struct CompanionSettings: Codable, Equatable, Sendable {
             engineMode: engine,
             sites: sites,
             openAtLaunch: try c.decodeIfPresent(Bool.self, forKey: .openAtLaunch) ?? false,
-            highlightWords: try c.decodeIfPresent(Bool.self, forKey: .highlightWords) ?? true
+            highlightWords: try c.decodeIfPresent(Bool.self, forKey: .highlightWords) ?? true,
+            saveTranscripts: try c.decodeIfPresent(Bool.self, forKey: .saveTranscripts) ?? false
         )
     }
 
@@ -155,6 +159,7 @@ public struct CompanionSettings: Codable, Equatable, Sendable {
         try c.encode(sites, forKey: .sites)
         try c.encode(openAtLaunch, forKey: .openAtLaunch)
         try c.encode(highlightWords, forKey: .highlightWords)
+        try c.encode(saveTranscripts, forKey: .saveTranscripts)
     }
 }
 
@@ -235,6 +240,9 @@ public final class SettingsStore: @unchecked Sendable {
         }
         if let value = Self.bool(json["openAtLaunch"]) {
             settings.openAtLaunch = value
+        }
+        if let value = Self.bool(json["saveTranscripts"]) {
+            settings.saveTranscripts = value
         }
         if let value = Self.bool(json["highlightWords"]) {
             settings.highlightWords = value
