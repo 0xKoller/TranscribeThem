@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Popup preview</title>
+    <link rel="stylesheet" href="../src/popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>TranscribeThem</h1>
+      <p class="tag">100% en el dispositivo. Sin API keys.</p>
+    </header>
+    <div class="companion-card is-online">
+      <div class="companion-title">
+        <span class="dot"></span>
+        <span>App local: Conectada (Parakeet v3)</span>
+      </div>
+      <p class="companion-hint">Transcribe con Parakeet si la app macOS está abierta.</p>
+    </div>
+    <label>
+      Idioma
+      <select id="language">
+        <option value="es" selected>Español</option>
+        <option value="en">English</option>
+        <option value="auto">Automático</option>
+      </select>
+    </label>
+    <p class="footer">
+      <button type="button" id="open-app" class="link-btn">Abrir app</button>
+      <button type="button" id="open-options" class="link-btn">Ajustes</button>
+    </p>
+    <script>
+      document.getElementById("open-options").addEventListener("click", () => {
+        location.href = "options-preview.html";
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ajustes preview</title>
+    <link rel="stylesheet" href="../src/popup.css" />
+    <link rel="stylesheet" href="../src/options.css" />
+  </head>
+  <body class="options">
+    <header>
+      <h1>TranscribeThem</h1>
+      <p class="tag">Ajustes. 100% en el dispositivo.</p>
+    </header>
+    <section class="panel">
+      <h2>Dónde aparece</h2>
+      <label class="debug-toggle">
+        <input type="checkbox" checked />
+        WhatsApp Web
+      </label>
+      <p class="hint muted">Si lo apagás, el botón desaparece en ese sitio.</p>
+    </section>
+    <section class="panel">
+      <h2>Cómo transcribe</h2>
+      <label>
+        Idioma
+        <select>
+          <option selected>Español</option>
+          <option>English</option>
+          <option>Automático</option>
+        </select>
+      </label>
+      <p class="section-label">Motor</p>
+      <div class="models">
+        <label class="model-card is-selected">
+          <input type="radio" checked />
+          <span class="model-card-body">
+            <span class="model-card-title">Automático</span>
+            <span class="model-card-hint">Usa esta app. Si no está, transcribe en el navegador.</span>
+          </span>
+        </label>
+      </div>
+      <p class="section-label">Modelo del navegador</p>
+      <div id="models" class="models"></div>
+    </section>
+    <section class="panel">
+      <h2>En la nota</h2>
+      <label class="debug-toggle">
+        <input type="checkbox" />
+        Mostrar el tiempo de cada nota
+      </label>
+      <label class="debug-toggle">
+        <input type="checkbox" checked />
+        Resaltar la palabra mientras suena
+      </label>
+    </section>
+    <section class="panel">
+      <h2>Avanzado</h2>
+      <dl class="status">
+        <div><dt>WebGPU</dt><dd class="yes">sí</dd></div>
+        <div><dt>Cache</dt><dd class="yes">sí</dd></div>
+        <div><dt>Motor</dt><dd>webgpu</dd></div>
+      </dl>
+      <p>Puerto local: 8765</p>
+    </section>
+    <script src="../src/settings.js"></script>
+    <script>
+      for (const m of WA_MODELS) {
+        const label = document.createElement("label");
+        label.className = "model-card" + (m.recommended ? " is-selected" : "");
+        label.innerHTML = `<input type="radio" name="model" ${m.recommended ? "checked" : ""}><span class="model-card-body"><span class="model-card-title">${m.label}</span><span class="model-card-hint">${m.hint}</span></span>`;
+        document.getElementById("models").appendChild(label);
+      }
+    </script>
+  </body>
+</html>

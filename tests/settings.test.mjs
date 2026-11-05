@@ -1,0 +1,38 @@
+import { readFileSync } from "node:fs";
+import { createContext, runInContext } from "node:vm";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import assert from "node:assert/strict";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const src = readFileSync(join(root, "src", "settings.js"), "utf8");
+const ctx = createContext({ globalThis: {}, URL });
+ctx.globalThis = ctx;
+runInContext(src, ctx);
+const { WA_DEFAULTS, WA_MODELS, WA_ALLOWED_MODELS } = ctx;
+
+assert.equal(WA_DEFAULTS.modelId, "onnx-community/whisper-small");
+assert.equal(WA_DEFAULTS.debugMode, false);
+assert.equal(WA_MODELS.map((m) => m.key).join(","), "small,medium,turbo");
+assert.ok(!WA_ALLOWED_MODELS.some((id) => /tiny|base/i.test(id)));
+assert.ok(WA_ALLOWED_MODELS.includes("Xenova/whisper-medium"));
+assert.equal(ctx.WA_MODEL_ALIASES["onnx-community/whisper-medium"], "Xenova/whisper-medium");
+assert.ok(!WA_ALLOWED_MODELS.includes("onnx-community/whisper-medium"));
+assert.ok(WA_ALLOWED_MODELS.includes("onnx-community/whisper-large-v3-turbo"));
+assert.ok(WA_MODELS.every((m) => m.hint && m.hint.length > 10));
+assert.equal(ctx.waNormalizeEngineMode(undefined, false), "browser");
+assert.equal(ctx.waNormalizeEngineMode(undefined, true), "auto");
+assert.equal(ctx.waNormalizeEngineMode("companion", false), "companion");
+assert.equal(ctx.waAfterCompanionMiss("companion", true), "fail");
+assert.equal(ctx.waAfterCompanionMiss("auto", true), "browser");
+assert.equal(ctx.waCompanionLanguage("auto"), "none");
+assert.equal(ctx.waWhisperLanguage("auto"), "es");
+assert.equal(ctx.waSiteId("https://web.whatsapp.com/send"), "whatsapp");
+assert.equal(ctx.waSiteId("https://example.com/chat"), "");
+assert.equal(ctx.waSiteEnabled({ sites: { whatsapp: false } }, "whatsapp"), false);
+assert.equal(ctx.waSiteEnabled({}, "whatsapp"), true);
+const sites = ctx.waNormalizeSites({ whatsapp: false, evil: true });
+assert.equal(sites.whatsapp, false);
+assert.equal(sites.evil, undefined);
+assert.equal(Object.keys(sites).join(","), "whatsapp");
+console.log("settings.test.mjs ok");

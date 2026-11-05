@@ -1,0 +1,528 @@
+/* Only when the mount parent is itself a horizontal row (avatar | bubble).
+   The player row never gets this class, so play and 1.5× stay put. */
+.wa-t-row {
+  flex-wrap: wrap !important;
+}
+
+.wa-t-row > .wa-t-wrap {
+  flex: 1 0 100%;
+}
+
+.wa-t-wrap {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch;
+  clear: both;
+  text-align: start !important;
+  gap: 6px;
+  margin: 4px 0 6px;
+  padding: 0;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  user-select: text;
+}
+
+.wa-t-wrap[data-side="out"] {
+  margin-left: auto;
+}
+
+.wa-t-wrap[data-side="in"] {
+  margin-right: auto;
+}
+
+.wa-t-foot {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+}
+
+/* Beside the bubble, out of flow. Hidden until the note is hovered, like the emoji button. */
+.wa-t-foot.wa-t-aside {
+  position: absolute;
+  top: 6px;
+  z-index: 3;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  gap: 6px;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: none;
+}
+
+.wa-t-aside.is-on,
+.wa-t-aside:has(.wa-t-btn[data-busy="1"]),
+.wa-t-aside:has(.wa-t-status:not([hidden])) {
+  opacity: 1;
+  pointer-events: auto;
+  transition: none;
+}
+
+.wa-t-aside .wa-t-actions {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.wa-t-aside .wa-t-status {
+  max-width: 140px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* Incoming emoji sits on the top corner. Our stack starts below it. */
+.wa-t-aside[data-side="in"] {
+  top: 46px;
+  left: calc(100% + 12px);
+  right: auto;
+}
+
+.wa-t-aside[data-side="out"] {
+  right: calc(100% + 8px);
+  left: auto;
+}
+
+/* Stack the emoji with our buttons. Do not set display or position on that node. */
+.wa-t-stack {
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+/* Inside the emoji tray. WhatsApp leaves that tray mounted and only fades its
+   own buttons, so ours follow the same hover flag as the aside fallback. */
+.wa-t-foot.wa-t-emoji-host {
+  position: static;
+  inset: auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: auto;
+  max-width: none;
+  height: auto;
+  margin: 0;
+  gap: 2px;
+  z-index: auto;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: none;
+}
+
+.wa-t-emoji-host.is-on,
+.wa-t-emoji-host:has(.wa-t-btn[data-busy="1"]),
+.wa-t-emoji-host:has(.wa-t-status:not([hidden])) {
+  opacity: 1;
+  pointer-events: auto;
+  transition: none;
+}
+
+.wa-t-emoji-host .wa-t-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.wa-t-emoji-host .wa-t-btn,
+.wa-t-emoji-host .wa-t-save,
+.wa-t-emoji-host .wa-t-copy {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  opacity: 1;
+}
+
+.wa-t-emoji-host .wa-t-btn:hover:not(:disabled),
+.wa-t-emoji-host .wa-t-save:hover:not(:disabled),
+.wa-t-emoji-host .wa-t-copy:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.wa-t-emoji-host .wa-t-status:not([hidden]) {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: max-content;
+  max-width: 180px;
+  z-index: 5;
+}
+
+.wa-t-btn[hidden],
+.wa-t-actions[hidden],
+.wa-t-copy[hidden],
+.wa-t-save[hidden],
+.wa-t-text[hidden],
+.wa-t-status[hidden],
+.wa-t-badge[hidden],
+.wa-t-wrap[hidden],
+.wa-t-aside[hidden] {
+  display: none !important;
+}
+
+.wa-t-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Button row and the message clock share one line. Nothing is reparented. */
+.wa-t-share {
+  display: flex !important;
+  flex-flow: row wrap !important;
+  align-items: center !important;
+  align-content: flex-start !important;
+  justify-content: flex-start !important;
+}
+
+.wa-t-share > .wa-t-share-lead {
+  order: 0;
+  flex: 1 0 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.wa-t-share > .wa-t-wrap {
+  order: 1;
+  flex: 1 1 auto !important;
+  width: auto !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin-bottom: 0;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.wa-t-share > .wa-t-share-time {
+  order: 2;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 0 0 auto !important;
+  float: none !important;
+  position: static !important;
+  inset: auto !important;
+  align-self: center !important;
+}
+
+.wa-t-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.wa-t-btn-label {
+  display: none;
+}
+
+.wa-t-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.wa-t-bar {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+.wa-t-btn[data-busy="1"] .wa-t-bar {
+  animation: wa-t-eq 0.9s ease-in-out infinite;
+}
+
+.wa-t-btn[data-busy="1"] .wa-t-bar:nth-child(1) { animation-delay: 0s; }
+.wa-t-btn[data-busy="1"] .wa-t-bar:nth-child(2) { animation-delay: 0.12s; }
+.wa-t-btn[data-busy="1"] .wa-t-bar:nth-child(3) { animation-delay: 0.24s; }
+.wa-t-btn[data-busy="1"] .wa-t-bar:nth-child(4) { animation-delay: 0.36s; }
+
+@keyframes wa-t-eq {
+  0%, 100% { transform: scaleY(0.28); }
+  50% { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wa-t-btn[data-busy="1"] .wa-t-bar {
+    animation: none;
+  }
+
+  .wa-t-text,
+  .wa-t-aside {
+    transition: none;
+  }
+}
+
+.wa-t-copy,
+.wa-t-save {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.78;
+  flex: 0 0 auto;
+}
+
+.wa-t-copy svg,
+.wa-t-save svg {
+  display: block;
+}
+
+.wa-t-btn {
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  color: inherit;
+}
+
+.wa-t-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  border-color: color-mix(in srgb, currentColor 42%, transparent);
+}
+
+.wa-t-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.wa-t-btn[data-busy="1"]:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+
+.wa-t-wrap[data-phase="error"] .wa-t-btn {
+  background: transparent;
+  border-color: rgba(224, 122, 114, 0.7);
+  color: #e8b4ae;
+}
+
+.wa-t-save:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.wa-t-copy:hover,
+.wa-t-save:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.wa-t-status {
+  color: #8696a0;
+  font-size: 12px;
+}
+
+.wa-t-wrap[data-phase="error"] .wa-t-status {
+  color: #f15c4c;
+}
+
+.wa-t-text {
+  position: relative;
+  display: grid;
+  grid-template-rows: 0fr;
+  color: inherit;
+  background: transparent;
+  max-width: 100%;
+  /* Keeps the last word off WhatsApp's clock when they share the line. */
+  padding-inline-end: 12px;
+  opacity: 0;
+  user-select: text;
+  transition: grid-template-rows 0.32s ease, opacity 0.28s ease;
+}
+
+.wa-t-text.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.wa-t-grow {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.wa-t-body {
+  display: inline;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 2px 0 0;
+  cursor: text;
+}
+
+/* Inline after the last word. A full-width row lands on the clock on short notes. */
+.wa-t-tools {
+  position: static;
+  display: inline-flex;
+  vertical-align: middle;
+  justify-content: flex-start;
+  gap: 2px;
+  margin: 0 0 0 4px;
+}
+
+.wa-t-tools:empty {
+  display: none;
+}
+
+.wa-t-text .wa-t-copy {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+}
+
+.wa-t-tools-meta {
+  position: static;
+  top: auto;
+  right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin: 0 2px 0 0;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
+.wa-t-tools-meta .wa-t-copy,
+.wa-t-tools-meta .wa-t-save {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+}
+
+.wa-t-tools-meta .wa-t-copy svg,
+.wa-t-tools-meta .wa-t-save svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Small clock row, still WhatsApp's node. No position and no display change. */
+.wa-t-tail {
+  width: fit-content !important;
+  max-width: 100% !important;
+  margin-left: auto !important;
+  margin-inline-start: auto !important;
+  margin-right: 0 !important;
+  align-self: flex-end !important;
+  justify-self: end !important;
+}
+
+.wa-t-tail-stretch {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.wa-t-tail-host {
+  text-align: end !important;
+}
+
+.wa-t-keep-start {
+  text-align: start !important;
+}
+
+/* Incoming time row is centered in the bubble. Push that row to the right edge. */
+.wa-t-meta-stretch {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.wa-t-meta {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  width: fit-content !important;
+  max-width: 100%;
+  margin-left: auto !important;
+  margin-right: 0 !important;
+  align-self: flex-end !important;
+}
+
+.wa-t-word {
+  display: inline-grid;
+  vertical-align: baseline;
+  cursor: pointer;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Bold copy reserves the width, so the playhead highlight does not reflow the line. */
+.wa-t-word::before,
+.wa-t-word-tx {
+  grid-area: 1 / 1;
+  align-self: baseline;
+}
+
+.wa-t-word::before {
+  content: attr(data-text) / "";
+  font-weight: 700;
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.wa-t-word.is-upcoming {
+  opacity: 0.4;
+}
+
+.wa-t-word.is-on {
+  background: rgba(255, 255, 255, 0.16);
+  opacity: 1;
+}
+
+.wa-t-word.is-on .wa-t-word-tx {
+  font-weight: 700;
+}
+
+html.wa-t-no-highlight .wa-t-word.is-on {
+  background: transparent;
+}
+
+html.wa-t-no-highlight .wa-t-word.is-on .wa-t-word-tx {
+  font-weight: 400;
+}
+
+html.wa-t-no-highlight .wa-t-word.is-upcoming {
+  opacity: 1;
+}
+
+.wa-t-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  color: #8696a0;
+  margin-top: 2px;
+  padding: 0 2px;
+}
+
+.wa-t-badge-parakeet {
+  color: #25d366;
+  font-weight: 500;
+}

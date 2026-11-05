@@ -1,0 +1,37 @@
+body.options {
+  width: auto;
+  max-width: 560px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+}
+
+.options h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.panel {
+  margin: 18px 0 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.panel p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.panel p:last-child {
+  margin-bottom: 0;
+}
+
+.panel strong {
+  color: var(--ink);
+  font-weight: 650;
+}

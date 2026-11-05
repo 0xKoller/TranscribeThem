@@ -1,0 +1,27 @@
+{
+  "name": "transcribethem",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome MV3: transcribe WhatsApp Web voice notes on-device (Whisper + WebGPU). No API keys.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:companion": "./scripts/package-companion.sh",
+    "package:release": "./scripts/package-release.sh",
+    "icons": "python3 scripts/icons.py",
+    "test": "node tests/errors.test.mjs && node tests/queue.test.mjs && node tests/settings.test.mjs && node tests/download-progress.test.mjs && node tests/extract-match.test.mjs && node tests/ui-mount.test.mjs && node tests/words.test.mjs && node tests/companion-sync.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.9"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xKoller/TranscribeThem.git"
+  }
+}

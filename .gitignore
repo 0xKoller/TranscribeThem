@@ -1,0 +1,17 @@
+node_modules/
+.DS_Store
+*.ppm
+*.map
+.cache/
+
+# private voice notes used for evaluation, never commit
+eval/
+.build/
+companion/.build/
+companion/build/
+dist/
+
+
+# Generated extension runtime (included in release ZIPs)
+src/offscreen.bundle.js
+vendor/ort/

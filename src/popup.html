@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>TranscribeThem</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>TranscribeThem</h1>
+      <p class="tag">100% en el dispositivo. Sin API keys.</p>
+    </header>
+
+    <div id="companion-box" class="companion-card">
+      <div class="companion-title">
+        <span id="companion-dot" class="dot"></span>
+        <span id="companion-status">Verificando app local…</span>
+      </div>
+      <p id="companion-hint" class="companion-hint">Transcribe con Parakeet si la app macOS está abierta.</p>
+    </div>
+
+    <label>
+      Idioma
+      <select id="language">
+        <option value="es" selected>Español</option>
+        <option value="en">English</option>
+        <option value="auto">Automático</option>
+      </select>
+    </label>
+
+    <p id="error" class="error" hidden></p>
+
+    <p class="footer">
+      <button type="button" id="open-app" class="link-btn">Abrir app</button>
+      <button type="button" id="open-options" class="link-btn">Ajustes</button>
+    </p>
+
+    <script src="messages.js"></script>
+    <script src="settings.js"></script>
+    <script src="companion-sync.js"></script>
+    <script src="settings-ui.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

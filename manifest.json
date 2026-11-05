@@ -1,0 +1,78 @@
+{
+  "manifest_version": 3,
+  "name": "TranscribeThem",
+  "description": "Transcribe notas de voz de WhatsApp Web 100% en el dispositivo. Sin API keys.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "113",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "TranscribeThem",
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "src/options.html",
+    "open_in_tab": true
+  },
+  "permissions": [
+    "storage",
+    "offscreen",
+    "unlimitedStorage",
+    "downloads"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "https://web.whatsapp.com/*",
+    "https://huggingface.co/*",
+    "https://*.huggingface.co/*",
+    "https://hf.co/*",
+    "https://*.hf.co/*",
+    "https://*.xethub.hf.co/*",
+    "https://cdn.jsdelivr.net/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "src/extract-match.js",
+        "src/page-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "src/messages.js",
+        "src/settings.js",
+        "src/errors.js",
+        "src/ui-mount.js",
+        "src/words.js",
+        "src/content.js"
+      ],
+      "css": [
+        "src/content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  }
+}

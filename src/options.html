@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ajustes — TranscribeThem</title>
+    <link rel="stylesheet" href="popup.css" />
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body class="options">
+    <header>
+      <h1>TranscribeThem</h1>
+      <p class="tag">Ajustes. 100% en el dispositivo.</p>
+    </header>
+
+    <section class="panel">
+      <h2>Dónde aparece</h2>
+      <label class="debug-toggle">
+        <input type="checkbox" id="site-whatsapp" checked />
+        WhatsApp Web
+      </label>
+      <p class="hint muted">Si lo apagás, el botón desaparece en ese sitio.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Cómo transcribe</h2>
+      <label>
+        Idioma
+        <select id="language">
+          <option value="es" selected>Español</option>
+          <option value="en">English</option>
+          <option value="auto">Automático</option>
+        </select>
+      </label>
+      <p id="auto-hint" class="hint muted" hidden>Parakeet detecta el idioma. Si transcribe el navegador, usa Español.</p>
+
+      <p class="section-label">Motor</p>
+      <div id="engines" class="models">
+        <label class="model-card">
+          <input type="radio" name="engine" value="auto" />
+          <span class="model-card-body">
+            <span class="model-card-title">Automático</span>
+            <span class="model-card-hint">Usa esta app. Si no está, transcribe en el navegador.</span>
+          </span>
+        </label>
+        <label class="model-card">
+          <input type="radio" name="engine" value="companion" />
+          <span class="model-card-body">
+            <span class="model-card-title">Solo esta app</span>
+            <span class="model-card-hint">Si la app no responde, la nota falla y no usa el navegador.</span>
+          </span>
+        </label>
+        <label class="model-card">
+          <input type="radio" name="engine" value="browser" />
+          <span class="model-card-body">
+            <span class="model-card-title">Solo el navegador</span>
+            <span class="model-card-hint">Siempre transcribe con Whisper en Chrome.</span>
+          </span>
+        </label>
+      </div>
+
+      <p class="section-label">Modelo del navegador</p>
+      <div id="models" class="models"></div>
+      <p id="gpu-warn" class="warn" hidden></p>
+      <div id="progress" class="progress" hidden>
+        <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+        <p id="progress-label" class="progress-label"></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>En la nota</h2>
+      <label class="debug-toggle">
+        <input type="checkbox" id="debug-mode" />
+        Mostrar el tiempo de cada nota
+      </label>
+      <label class="debug-toggle">
+        <input type="checkbox" id="highlight-words" checked />
+        Resaltar la palabra mientras suena
+      </label>
+    </section>
+
+    <p id="error" class="error" hidden></p>
+
+    <section class="panel">
+      <h2>Avanzado</h2>
+      <dl class="status">
+        <div>
+          <dt>WebGPU</dt>
+          <dd id="webgpu">…</dd>
+        </div>
+        <div>
+          <dt>Cache</dt>
+          <dd id="cache">…</dd>
+        </div>
+        <div>
+          <dt>Motor</dt>
+          <dd id="device">—</dd>
+        </div>
+      </dl>
+      <p>Modelo en memoria: <strong id="loaded-model">—</strong></p>
+      <p>Versión: <strong id="version">—</strong></p>
+      <p>Puerto local: 8765</p>
+      <p><button type="button" id="open-app" class="link-btn">Abrir la app</button></p>
+    </section>
+
+    <section class="panel">
+      <h2>Privacidad</h2>
+      <p>
+        El audio de la nota de voz se decodifica y se transcribe en esta máquina.
+        No se envía a ningún servidor de transcripción. No hay API keys.
+      </p>
+      <p>
+        La primera vez se bajan los pesos del modelo desde Hugging Face (gratis) y
+        quedan en el cache del navegador. Después funciona offline.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>Si no aparece el botón</h2>
+      <p>
+        Revisá que WhatsApp Web esté prendido arriba. Si lo está, recargá la
+        extensión y después la pestaña. El hook de audio corre al inicio de la página.
+      </p>
+    </section>
+
+    <script src="messages.js"></script>
+    <script src="settings.js"></script>
+    <script src="companion-sync.js"></script>
+    <script src="settings-ui.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>
