@@ -1,5 +1,7 @@
 # TranscribeThem — app para macOS
 
+For installation without building from source, follow the [full installation tutorial](../docs/INSTALLATION.md).
+
 App de barra de menú para Apple Silicon y macOS 14+, con Parakeet v3 mediante FluidAudio/CoreML. La extensión puede usar Whisper sin esta app.
 
 ## Compilar

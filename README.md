@@ -1,5 +1,7 @@
 # TranscribeThem
 
+**[Full installation tutorial (English)](docs/INSTALLATION.md)** — extension, Mac app, first transcription, troubleshooting, and updates.
+
 Transcribí notas de voz de WhatsApp Web en tu dispositivo. Extensión de Chrome con Whisper (Transformers.js) y una app opcional para Mac con Parakeet v3 (FluidAudio/CoreML). Sin API keys ni servicios de transcripción remotos.
 
 ## Descargar e instalar
