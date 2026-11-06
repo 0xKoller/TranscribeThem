@@ -1,37 +1,37 @@
 # TranscribeThem
 
-[Guía completa de instalación (inglés)](docs/INSTALLATION.md). Cubre la extensión, la app de Mac, la primera transcripción, problemas frecuentes y cómo actualizar.
+[Full installation guide](docs/INSTALLATION.md). It covers the extension, the Mac app, the first transcription, troubleshooting, and updates.
 
-Transcribí notas de voz de WhatsApp Web y de los DMs de X en tu dispositivo. Es una extensión de Chrome con Whisper (Transformers.js) y una app para Mac con Parakeet v3 (FluidAudio/CoreML). La extensión funciona sola, pero está pensada para usarse con la app: con Parakeet transcribe más rápido y mejor. No pide API keys y no manda el audio a un servicio de transcripción.
+Transcribe WhatsApp Web and X DM voice notes on your device. This is a Chrome extension with Whisper (Transformers.js) and a Mac app with Parakeet v3 (FluidAudio/CoreML). The extension works on its own, but it is meant to be used with the app: Parakeet transcribes faster and better. It does not ask for API keys and does not send audio to a transcription service.
 
-## Descargar e instalar
+## Download and install
 
-Descargá los archivos del [release v0.3.0](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.3.0):
+Download the files from the [v0.3.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.3.0):
 
-- `TranscribeThem-0.3.0.dmg`: la app recomendada para Mac con Apple Silicon y macOS 14 o superior. Abrí el DMG, arrastrá TranscribeThem a Aplicaciones y abrila. Con la app, la extensión usa Parakeet. La app tiene firma ad hoc. No está firmada con Developer ID ni notarizada. Si macOS la bloquea, andá a Configuración del Sistema, Privacidad y seguridad, y tocá Abrir de todos modos.
-- `TranscribeThem-extension-0.3.0.zip`: la extensión, necesaria en Chrome 113 o superior. Descomprimí el ZIP, abrí `chrome://extensions`, activá Modo de desarrollador, tocá Cargar descomprimida y elegí la carpeta que tiene `manifest.json`.
+- `TranscribeThem-0.3.0.dmg`: the recommended Mac app for Apple Silicon and macOS 14 or later. Open the DMG, drag TranscribeThem to Applications, and open it. With the app running, the extension uses Parakeet. The app has an ad hoc signature. It is not signed with Developer ID and is not notarized. If macOS blocks it, go to System Settings, Privacy & Security, and click Open Anyway.
+- `TranscribeThem-extension-0.3.0.zip`: the Chrome extension, required on Chrome 113 or later. Unzip it, open `chrome://extensions`, turn on Developer mode, click Load unpacked, and choose the folder that contains `manifest.json`.
 
-Abrí o recargá [WhatsApp Web](https://web.whatsapp.com) después de instalar la extensión y tocá Transcribir en una nota de voz. No hace falta reproducirla. No se envía ningún mensaje.
+Open or reload [WhatsApp Web](https://web.whatsapp.com) after installing the extension and click Transcribe on a voice note. You do not need to play it first. No message is sent.
 
-En [los DMs de X](https://x.com/i/chat), recargá la pestaña y pasá el cursor sobre una nota de voz. Transcribir aparece junto a las acciones nativas. Cuando termina, el botón pasa a Copiar y el texto queda debajo del audio, alineado con los mensajes. Durante la reproducción se resaltan las palabras, y al tocar una saltás a ese momento.
+In [X DMs](https://x.com/i/chat), reload the tab and hover over a voice note. Transcribe appears next to the native actions. When it finishes, the button becomes Copy and the text sits under the audio, aligned with the messages. Words highlight during playback, and clicking one jumps to that moment.
 
-La app de Mac es la forma recomendada de usar TranscribeThem. Transcribe con Parakeet, más rápido que Whisper en el navegador. En modo Automático usa la app cuando está abierta, y si no está disponible cae a Whisper. Si elegís Solo esta app o Solo el navegador, usa ese motor y no cambia al otro. La primera vez descarga el modelo desde Hugging Face; después reutiliza la caché local. Si AVFoundation no puede decodificar un formato, la app necesita `ffmpeg` instalado en la máquina. No viene en el DMG.
+The Mac app is the recommended way to use TranscribeThem. It transcribes with Parakeet, faster than Whisper in the browser. In Automatic mode it uses the app when it is open, and falls back to Whisper if the app is not available. If you pick App only or Browser only, it uses that engine and does not switch. The first run downloads the model from Hugging Face; later runs reuse the local cache. If AVFoundation cannot decode a format, the app needs `ffmpeg` installed on the machine. It is not bundled in the DMG.
 
-## Ajustes
+## Settings
 
-Desde el popup podés elegir idioma (español o inglés), modelo Whisper y uso de la app. Small es el modelo predeterminado. Los modelos más grandes pedirán más memoria. La extensión intenta usar WebGPU y, si no puede, usa WASM en la CPU. Procesa una nota a la vez.
+From the popup you can pick the language (Spanish or English), the Whisper model, and whether to use the app. Small is the default model. Larger models need more memory. The extension tries WebGPU and, if that is not available, uses WASM on the CPU. It processes one note at a time.
 
-La ventana de la app muestra el estado del modelo, del servidor local y de la extensión, junto con ajustes y estadísticas locales.
+The app window shows the model, local server, and extension status, along with settings and local statistics.
 
-## Privacidad y red
+## Privacy and network
 
-El audio se procesa en tu máquina, en el navegador o en la app a través de `127.0.0.1:8765`. Los modelos se bajan de Hugging Face. Si hace falta, los recursos WASM pueden bajar de jsDelivr. WhatsApp Web y X siguen usando sus propias conexiones.
+Audio is processed on your machine, in the browser or in the app through `127.0.0.1:8765`. Models download from Hugging Face. WASM assets may fall back to jsDelivr if needed. WhatsApp Web and X keep using their own network connections.
 
-No hay analytics ni un backend propio. La app guarda ajustes y estadísticas en el Mac. Usa archivos de audio temporales mientras transcribe y los borra al terminar. La última transcripción puede quedar en memoria mientras la app esté abierta. Desde la extensión podés guardar audio y texto si lo pedís vos.
+There is no analytics and no backend of our own. The app stores settings and statistics on the Mac. It uses temporary audio files while transcribing and deletes them when done. The last transcript may stay in memory while the app is open. From the extension you can save audio and text if you ask it to.
 
-## Desarrollo
+## Development
 
-Requisitos: Node.js 18 o superior y npm. Para compilar la app: Apple Silicon, macOS 14 o superior, y un toolchain de Swift 6 compatible con el SDK de macOS instalado.
+Requirements: Node.js 18 or later and npm. To build the app: Apple Silicon, macOS 14 or later, and a Swift 6 toolchain compatible with the installed macOS SDK.
 
 ```bash
 git clone https://github.com/0xKoller/TranscribeThem.git
@@ -41,9 +41,9 @@ npm run build
 npm test
 ```
 
-Después cargá esta carpeta desde `chrome://extensions`. El bundle y los WASM se generan al compilar; no están versionados.
+Then load this folder from `chrome://extensions`. The bundle and WASM files are generated at build time; they are not checked in.
 
-Para la app y sus pruebas:
+For the app and its tests:
 
 ```bash
 npm run build:companion
@@ -51,24 +51,24 @@ cd companion
 swift test
 ```
 
-Para armar el ZIP y el DMG desde macOS:
+To build the ZIP and DMG on macOS:
 
 ```bash
 npm run package:release
 ```
 
-Los archivos quedan en `dist/`. Los modelos se descargan en ejecución y no vienen en los instaladores. Más detalle en [CONTRIBUTING.md](CONTRIBUTING.md) y en [la documentación de la app](companion/README.md).
+The files land in `dist/`. Models download at runtime and are not included in the installers. More detail is in [CONTRIBUTING.md](CONTRIBUTING.md) and [the app documentation](companion/README.md).
 
-## Limitaciones
+## Limitations
 
-Esta es la versión 0.3.0. Las transcripciones pueden tener errores. Si WhatsApp o X cambian su interfaz, la extensión puede dejar de funcionar. Todavía no está en Chrome Web Store. El instalador de Mac es solo para Apple Silicon.
+This is version 0.3.0. Transcripts can contain errors. If WhatsApp or X change their interface, the extension may stop working. It is not on the Chrome Web Store yet. The Mac installer is Apple Silicon only.
 
-## Licencia
+## License
 
-El código propio está bajo [MIT](LICENSE). Las dependencias y los modelos tienen sus propias licencias; ver [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Original code is [MIT](LICENSE). Dependencies and models have their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Proyecto independiente, sin afiliación con WhatsApp, Meta ni X.
+Independent project, not affiliated with WhatsApp, Meta, or X.
 
-## Actualizar
+## Updating
 
-Reemplazá los archivos de la extensión, tocá Recargar en `chrome://extensions` y recargá también las pestañas de WhatsApp y X. Las pestañas que ya estaban abiertas siguen con la versión anterior hasta que las recargues.
+Replace the extension files, click Reload on `chrome://extensions`, and reload the WhatsApp and X tabs as well. Tabs that were already open keep the previous version until you reload them.
