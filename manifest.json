@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "TranscribeThem",
-  "description": "Transcribe notas de voz de WhatsApp Web y de los mensajes de X, 100% en el dispositivo. Sin API keys.",
-  "version": "0.3.0",
+  "name": "__MSG_extName__",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
+  "version": "0.4.0",
   "minimum_chrome_version": "113",
   "icons": {
     "16": "icons/icon16.png",
@@ -11,7 +12,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "TranscribeThem",
+    "default_title": "__MSG_extActionTitle__",
     "default_popup": "src/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -24,12 +25,7 @@
     "page": "src/options.html",
     "open_in_tab": true
   },
-  "permissions": [
-    "storage",
-    "offscreen",
-    "unlimitedStorage",
-    "downloads"
-  ],
+  "permissions": ["storage", "offscreen", "unlimitedStorage", "downloads", "alarms"],
   "host_permissions": [
     "http://127.0.0.1/*",
     "http://localhost/*",
@@ -50,44 +46,20 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://web.whatsapp.com/*"
-      ],
-      "js": [
-        "src/extract-match.js",
-        "src/page-hook.js"
-      ],
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["src/extract-match.js", "src/page-hook.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": [
-        "https://web.whatsapp.com/*"
-      ],
-      "js": [
-        "src/messages.js",
-        "src/settings.js",
-        "src/errors.js",
-        "src/ui-mount.js",
-        "src/words.js",
-        "src/content.js"
-      ],
-      "css": [
-        "src/content.css"
-      ],
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["src/i18n.js", "src/messages.js", "src/settings.js", "src/errors.js", "src/ui-mount.js", "src/words.js", "src/transcript-cache.js", "src/content-core.js", "src/content-features.js", "src/content-whatsapp.js", "src/content-main.js"],
+      "css": ["src/content.css"],
       "run_at": "document_idle"
     },
     {
-      "matches": [
-        "https://x.com/*",
-        "https://*.x.com/*",
-        "https://twitter.com/*",
-        "https://*.twitter.com/*"
-      ],
-      "js": [
-        "src/extract-match.js",
-        "src/page-hook.js"
-      ],
+      "matches": ["https://x.com/*", "https://*.x.com/*", "https://twitter.com/*", "https://*.twitter.com/*"],
+      "js": ["src/extract-match.js", "src/page-hook.js"],
       "run_at": "document_start",
       "world": "MAIN",
       "all_frames": true,
@@ -95,24 +67,9 @@
       "match_origin_as_fallback": true
     },
     {
-      "matches": [
-        "https://x.com/*",
-        "https://*.x.com/*",
-        "https://twitter.com/*",
-        "https://*.twitter.com/*"
-      ],
-      "js": [
-        "src/messages.js",
-        "src/settings.js",
-        "src/errors.js",
-        "src/ui-mount.js",
-        "src/words.js",
-        "src/x-find.js",
-        "src/content.js"
-      ],
-      "css": [
-        "src/content.css"
-      ],
+      "matches": ["https://x.com/*", "https://*.x.com/*", "https://twitter.com/*", "https://*.twitter.com/*"],
+      "js": ["src/i18n.js", "src/messages.js", "src/settings.js", "src/errors.js", "src/ui-mount.js", "src/words.js", "src/x-find.js", "src/transcript-cache.js", "src/content-core.js", "src/content-features.js", "src/content-whatsapp.js", "src/content-x.js", "src/content-main.js"],
+      "css": ["src/content.css"],
       "run_at": "document_idle",
       "all_frames": true,
       "match_about_blank": true,

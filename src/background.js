@@ -1,5 +1,5 @@
 /* global WA_MSG, WA_TARGET, WA_PHASE, createSerialQueue, waGetSettings, waSetSettings, mapError */
-importScripts("messages.js", "settings.js", "companion-sync.js", "errors.js", "queue.js");
+importScripts("i18n.js", "messages.js", "settings.js", "companion-sync.js", "errors.js", "queue.js");
 
 const LOG = "[wa-transcribe]";
 const OFFSCREEN_URL = "src/offscreen.html";
@@ -73,65 +73,120 @@ function forwardToTab(requestId, message) {
   });
 }
 
-async function tryCompanionTranscribe(job, settings) {
+// The app answers 503 while Parakeet is still loading (right after launch).
+// Wait for it instead of treating the app as missing.
+const MODEL_LOADING_WAIT_MS = 20000;
+const MODEL_LOADING_STEP_MS = 1500;
+
+async function postToCompanion(job, settings) {
   const port = settings.companionPort || 8765;
-  const companionUrl = `http://127.0.0.1:${port}`;
+  const bytes = job.byteLength || (job.audioBase64 ? Math.round((job.audioBase64.length * 3) / 4) : 0);
+  const res = await fetch(`http://127.0.0.1:${port}/transcribe`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      audioBase64: job.audioBase64,
+      mimeType: job.mimeType || "audio/ogg",
+      language: waCompanionLanguage(settings.languageMode),
+      site: job.site || "unknown",
+    }),
+    signal: AbortSignal.timeout(waCompanionTimeoutMs(bytes)),
+  });
+  if (res.status === 503) return { loading: true };
+  if (!res.ok) throw new Error(`Companion HTTP ${res.status}`);
+  const data = await res.json();
+  if (data && data.ok && typeof data.text === "string") return { data };
+  throw new Error(data && data.error ? data.error : "Companion HTTP " + res.status);
+}
+
+async function tryCompanionTranscribe(job, settings) {
   try {
+    await waI18nInit();
     forwardToTab(job.requestId, {
       type: WA_MSG.PROGRESS,
       requestId: job.requestId,
       phase: WA_PHASE.RUNNING,
-      message: "Transcribiendo con Parakeet (app local)…",
+      message: waT("parakeetRunning"),
     });
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
-
-    const res = await fetch(`${companionUrl}/transcribe`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        audioBase64: job.audioBase64,
-        mimeType: job.mimeType || "audio/ogg",
-        language: waCompanionLanguage(settings.languageMode),
-        site: job.site || "unknown",
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      throw new Error(`Companion HTTP ${res.status}`);
-    }
-    const data = await res.json();
-    if (data && data.ok && typeof data.text === "string") {
-      log("Companion transcribed:", {
-        audioSeconds: data.audioSeconds,
-        transcribeMs: data.transcribeMs,
+    const giveUpAt = Date.now() + MODEL_LOADING_WAIT_MS;
+    let attempt = await postToCompanion(job, settings);
+    while (attempt.loading) {
+      if (Date.now() >= giveUpAt) throw new Error("Companion HTTP 503");
+      forwardToTab(job.requestId, {
+        type: WA_MSG.PROGRESS,
+        requestId: job.requestId,
+        phase: WA_PHASE.LOADING,
+        message: waT("appLoadingModel"),
       });
-      return {
-        result: {
-          type: WA_MSG.RESULT,
-          requestId: job.requestId,
-          text: data.text,
-          language: settings.languageMode || "es",
-          engine: "parakeet",
-          duration: data.audioSeconds,
-          transcribeMs: data.transcribeMs,
-          words: Array.isArray(data.words) ? data.words : [],
-        },
-      };
+      await delay(MODEL_LOADING_STEP_MS);
+      attempt = await postToCompanion(job, settings);
     }
-    throw new Error(data && data.error ? data.error : "Companion HTTP " + res.status);
+
+    const data = attempt.data;
+    log("Companion transcribed:", {
+      audioSeconds: data.audioSeconds,
+      transcribeMs: data.transcribeMs,
+    });
+    return {
+      result: {
+        type: WA_MSG.RESULT,
+        requestId: job.requestId,
+        text: data.text,
+        language: settings.languageMode || "es",
+        engine: "parakeet",
+        duration: data.audioSeconds,
+        transcribeMs: data.transcribeMs,
+        words: Array.isArray(data.words) ? data.words : [],
+      },
+    };
   } catch (err) {
     log("Companion app not available or error:", err && err.message);
     return { error: err };
   }
 }
 
+// One health check for everyone: the popup, the options page and the periodic
+// alarm. It also records what the app can do besides transcribing.
+async function checkCompanion() {
+  try {
+    await waSyncCompanionSettings();
+    const settings = await waGetSettings();
+    const port = settings.companionPort || 8765;
+    const res = await fetch(`http://127.0.0.1:${port}/health`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!res.ok) {
+      waSetSettings({ companionActive: false, companionFeatures: waNormalizeFeatures(null) });
+      return { ok: false, error: `HTTP ${res.status}` };
+    }
+    const data = await res.json();
+    waSetSettings({
+      companionActive: true,
+      companionFeatures: waNormalizeFeatures(data && data.features),
+    });
+    waHelloCompanion();
+    return { ok: true, data };
+  } catch (err) {
+    waSetSettings({ companionActive: false, companionFeatures: waNormalizeFeatures(null) });
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+}
+
+// Whisper weighs hundreds of MB. Only load it ahead of time when the browser
+// is the engine that will actually run: always in "browser" mode, never in
+// "companion" mode, and in "auto" only while the app is not answering.
+async function shouldPreloadWhisper() {
+  const settings = await waGetSettings();
+  const mode = waNormalizeEngineMode(settings.engineMode, settings.useCompanion);
+  if (mode === "browser") return true;
+  if (mode === "companion") return false;
+  const health = await checkCompanion();
+  return !health.ok;
+}
+
 async function runTranscribe(job) {
+  await waI18nInit();
   await waSyncCompanionSettings();
   const settings = await waGetSettings();
 
@@ -148,9 +203,10 @@ async function runTranscribe(job) {
     }
     if (waAfterCompanionMiss(mode, settings.useCompanion) === "fail") {
       const code = waJobErrorCode(attempt && attempt.error);
+      await waI18nInit();
       const message = code === "model_loading"
-        ? "El modelo todavía se está cargando. Reintentá en un momento."
-        : "La app no respondió. Reintentá cuando esté lista.";
+        ? waT("modelStillLoading")
+        : waT("appNoResponse");
       waReportCompanionJob({
         audioSeconds: 0,
         transcribeMs: 0,
@@ -175,8 +231,8 @@ async function runTranscribe(job) {
     requestId: job.requestId,
     phase: WA_PHASE.LOADING,
     message: mode === "browser"
-      ? "Cargando Whisper (navegador)…"
-      : "App no detectada. Cargando Whisper (navegador)…",
+      ? waT("loadingWhisper")
+      : waT("appMissingWhisper"),
   });
 
   await ensureOffscreen();
@@ -191,7 +247,6 @@ async function runTranscribe(job) {
       mimeType: job.mimeType,
       languageMode: waWhisperLanguage(settings.languageMode),
       modelId: settings.modelId || "onnx-community/whisper-small",
-      polishEnabled: settings.polishEnabled,
     });
   });
 }
@@ -204,11 +259,13 @@ function enqueueFromContent(msg, sender) {
 
   const alreadyBusy = queue.busy || queue.pending > 0;
   if (alreadyBusy) {
-    forwardToTab(requestId, {
-      type: WA_MSG.PROGRESS,
-      requestId,
-      phase: WA_PHASE.QUEUED,
-      message: "En cola…",
+    waI18nInit().then(() => {
+      forwardToTab(requestId, {
+        type: WA_MSG.PROGRESS,
+        requestId,
+        phase: WA_PHASE.QUEUED,
+        message: waT("inQueue"),
+      });
     });
   }
 
@@ -218,6 +275,7 @@ function enqueueFromContent(msg, sender) {
         requestId,
         audioBase64: msg.audioBase64,
         mimeType: msg.mimeType,
+        byteLength: msg.byteLength,
         tabId,
         site: siteFromSender(sender),
       },
@@ -225,12 +283,14 @@ function enqueueFromContent(msg, sender) {
     )
     .catch((err) => {
       log("queue job failed", err);
-      const message = mapError(err, "GENERIC");
-      waSetSettings({ lastError: message });
-      forwardToTab(requestId, { type: WA_MSG.ERROR, requestId, message });
-      const slot = pending.get(requestId);
-      if (slot && slot.reject) slot.reject(err);
-      pending.delete(requestId);
+      waI18nInit().then(() => {
+        const message = mapError(err, "GENERIC");
+        waSetSettings({ lastError: message });
+        forwardToTab(requestId, { type: WA_MSG.ERROR, requestId, message });
+        const slot = pending.get(requestId);
+        if (slot && slot.reject) slot.reject(err);
+        pending.delete(requestId);
+      });
     });
 }
 
@@ -300,6 +360,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === WA_MSG.ERROR) {
+    waI18nInit().then(() => {
     const message = msg.message || mapError(null, "GENERIC");
     waSetSettings({
       lastError: message,
@@ -321,12 +382,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (slot && slot.resolve) slot.resolve(null);
       pending.delete(msg.requestId);
     }
+    });
     return;
   }
 
   if (msg.type === WA_MSG.PRELOAD) {
     (async () => {
       try {
+        // A page load asks without a model; the settings UI names one because
+        // the user just picked it, and that download is wanted.
+        if (!msg.modelId && !(await shouldPreloadWhisper())) {
+          sendResponse({ ok: true, skipped: true });
+          return;
+        }
         const settings = await waGetSettings();
         const modelId = msg.modelId || settings.modelId || "onnx-community/whisper-small";
         await ensureOffscreen();
@@ -347,6 +415,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === WA_MSG.GET_STATUS) {
     (async () => {
       try {
+        await waI18nInit();
         await ensureOffscreen();
         chrome.runtime.sendMessage({
           type: WA_MSG.GET_STATUS,
@@ -384,31 +453,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === WA_MSG.CHECK_COMPANION) {
-    (async () => {
-      try {
-        await waSyncCompanionSettings();
-        const settings = await waGetSettings();
-        const port = settings.companionPort || 8765;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 1500);
-        const res = await fetch(`http://127.0.0.1:${port}/health`, {
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (res.ok) {
-          const data = await res.json();
-          waSetSettings({ companionActive: true });
-          waHelloCompanion();
-          sendResponse({ ok: true, data });
-          return;
-        }
-        waSetSettings({ companionActive: false });
-        sendResponse({ ok: false, error: `HTTP ${res.status}` });
-      } catch (err) {
-        waSetSettings({ companionActive: false });
-        sendResponse({ ok: false, error: err.message });
-      }
-    })();
+    checkCompanion().then(sendResponse);
+    return true;
+  }
+
+  if (msg.type === WA_MSG.TEXT_ACTION) {
+    waI18nInit().then(() => waCompanionTextAction(msg.action, msg.text, msg.targetLanguage)).then((out) => {
+      sendResponse(out.ok ? { ok: true, text: out.text } : { ok: false, error: out.error });
+    });
     return true;
   }
 
@@ -431,5 +483,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-waSyncCompanionSettings().then(() => waHelloCompanion());
+// Keep "is the app there" fresh from one place instead of from every tab.
+const COMPANION_ALARM = "wa-companion-check";
+if (chrome.alarms) {
+  chrome.alarms.create(COMPANION_ALARM, { periodInMinutes: 1 });
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === COMPANION_ALARM) checkCompanion();
+  });
+}
+
+checkCompanion();
 log("service worker ready");

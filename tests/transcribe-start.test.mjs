@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createContext, runInContext } from 'node:vm';
-const content = readFileSync(new URL('../src/content.js', import.meta.url), 'utf8');
+const content = readFileSync(new URL('../src/content-core.js', import.meta.url), 'utf8');
 const source = content.slice(content.indexOf('async function startTranscribe('), content.indexOf('function wrapForRequest('));
 for (const failure of ['sync', 'callback', 'before', 'none']) {
   let extracted = 0;

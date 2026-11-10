@@ -1,5 +1,5 @@
 import { pipeline, env, LogLevel } from "@huggingface/transformers";
-import { maybePolish } from "./polish.js";
+import { detectWhisperLanguage } from "./whisper-lang.js";
 import { downloadPct } from "./download-progress.js";
 
 const LOG = "[wa-transcribe]";
@@ -8,25 +8,10 @@ const DEFAULT_MODEL = "onnx-community/whisper-small";
 const DTYPE_FAST = { encoder_model: "fp16", decoder_model_merged: "q4" };
 const DTYPE_SAFE = { encoder_model: "fp32", decoder_model_merged: "q4" };
 
-const ERROR_COPY = {
-  NO_WEBGPU: "Este Chrome no tiene WebGPU. Actualizá Chrome (113+).",
-  WEBGPU_FALLBACK: "WebGPU no disponible, usando CPU (más lento).",
-  DOWNLOAD: "No pude bajar el modelo. Revisá internet o volvé a Small.",
-  DECODE: "No pude decodificar el audio (Opus).",
-  OOM: "Memoria insuficiente. Probá Small en el popup.",
-  GENERIC: "Falló la transcripción. Tocá Reintentar.",
-};
-
-const MSG = {
-  TRANSCRIBE: "WA_TRANSCRIBE",
-  PROGRESS: "WA_PROGRESS",
-  RESULT: "WA_RESULT",
-  ERROR: "WA_ERROR",
-  GET_STATUS: "WA_GET_STATUS",
-  STATUS: "WA_STATUS",
-  SETTINGS_CHANGED: "WA_SETTINGS_CHANGED",
-  PRELOAD: "WA_PRELOAD",
-};
+// messages.js and errors.js are classic scripts loaded by offscreen.html before
+// this module, so the copy and the message names exist in one place only.
+const MSG = globalThis.WA_MSG;
+const ERROR_COPY = globalThis.WA_ERROR_COPY;
 
 env.allowLocalModels = false;
 env.useBrowserCache = true;
@@ -60,27 +45,14 @@ function log(...args) {
   console.log(LOG, ...args);
 }
 
+// Same mapping as the rest of the extension, but an unrecognised engine error
+// keeps a short technical detail instead of the generic line.
 function mapError(err, code) {
-  if (code && ERROR_COPY[code]) return ERROR_COPY[code];
+  const mapped = globalThis.mapError(err, code);
+  if (mapped !== ERROR_COPY.GENERIC) return mapped;
   const msg = String(err && err.message ? err.message : err || "");
-  if (/no gpu|navigator\.gpu|webgpu is not supported|no available adapters/i.test(msg)) {
-    return ERROR_COPY.NO_WEBGPU;
-  }
-  if (/webgpuInit|no available backend/i.test(msg)) {
-    return ERROR_COPY.WEBGPU_FALLBACK;
-  }
-  if (/Failed to fetch|NetworkError|ERR_INTERNET|Load failed|failed to download|404|401|403|Unauthorized/i.test(msg)) {
-    return ERROR_COPY.DOWNLOAD;
-  }
-  if (/decode|EncodingError|NotSupportedError|opus|ogg/i.test(msg)) {
-    return ERROR_COPY.DECODE;
-  }
-  if (/out of memory|OOM|ENOMEM|gpu memory|Failed to allocate|buffer/i.test(msg)) {
-    return ERROR_COPY.OOM;
-  }
   const short = msg.replace(/\s+/g, " ").trim().slice(0, 140);
-  if (short) return `Falló Whisper: ${short}`;
-  return ERROR_COPY.GENERIC;
+  return short ? globalThis.waT("whisperFailed", short) : mapped;
 }
 
 async function probeWebGPU() {
@@ -236,8 +208,8 @@ async function decodePcm(arrayBuffer, mimeType) {
   return padPcm(await decodePcmViaElement(arrayBuffer, mimeType));
 }
 
-function resolveLanguage(languageMode) {
-  return languageMode === "en" ? "en" : "es";
+function resolveLanguageMode(languageMode) {
+  return languageMode === "en" || languageMode === "auto" ? languageMode : "es";
 }
 
 const ALLOWED_MODELS = {
@@ -260,6 +232,7 @@ function resolveModelId(modelId) {
 }
 
 async function ensurePipeline(modelId, requestId) {
+  await globalThis.waI18nInit();
   modelId = resolveModelId(modelId);
   if (pipe && loadedModelId === modelId) {
     log("reuse pipeline", modelId, loadedDevice);
@@ -284,7 +257,7 @@ async function ensurePipeline(modelId, requestId) {
       emitLoadProgress(requestId, ERROR_COPY.WEBGPU_FALLBACK, null);
     }
 
-    emitLoadProgress(requestId, "Cargando modelo…", 0);
+    emitLoadProgress(requestId, globalThis.waT("loadingModel"), 0);
 
     const load = async (dev, dtype) => {
       log("loading", modelId, "device", dev, "dtype", dtype.encoder_model, dtype.decoder_model_merged);
@@ -300,7 +273,7 @@ async function ensurePipeline(modelId, requestId) {
               ? Math.round((100 * (p.loaded || 0)) / p.total)
               : Math.round(Number(p.progress) || 0);
             uiPct = Math.max(uiPct, Math.max(0, Math.min(100, pct)));
-            emitLoadProgress(requestId, `Cargando modelo… ${uiPct}%`, uiPct);
+            emitLoadProgress(requestId, globalThis.waT("loadingModelPct", [String(uiPct)]), uiPct);
             return;
           }
           if (p.status !== "progress" || !p.total) return;
@@ -309,7 +282,7 @@ async function ensurePipeline(modelId, requestId) {
           const nextPct = downloadPct(fileBytes, uiPct);
           if (nextPct === uiPct) return;
           uiPct = nextPct;
-          emitLoadProgress(requestId, `Cargando modelo… ${uiPct}%`, uiPct);
+          emitLoadProgress(requestId, globalThis.waT("loadingModelPct", [String(uiPct)]), uiPct);
         },
       });
     };
@@ -399,7 +372,7 @@ function stampWhisperMultilingual(asr) {
 function whisperOpts(language) {
   return {
     task: "transcribe",
-    language: language === "en" ? "en" : "spanish",
+    language: language === "es" ? "spanish" : language,
     // Whisper decodes 30 s windows; chunk longer notes with overlap.
     chunk_length_s: 30,
     stride_length_s: 5,
@@ -436,9 +409,23 @@ async function transcribePcm(asr, pcm, opts) {
   }
 }
 
-async function runTranscribe({ requestId, audioBase64, mimeType, languageMode, modelId, polishEnabled }) {
+// "auto" asks the model which language it hears; a failed detection uses Spanish.
+async function pickLanguage(asr, pcm, languageMode) {
+  if (languageMode !== "auto") return languageMode;
+  try {
+    const detected = await detectWhisperLanguage(asr, pcm, WHISPER_LANG_TO_ID, TARGET_SR);
+    log("language detected", detected);
+    return detected || "es";
+  } catch (err) {
+    log("language detection failed", err && err.message);
+    return "es";
+  }
+}
+
+async function runTranscribe({ requestId, audioBase64, mimeType, languageMode, modelId }) {
+  await globalThis.waI18nInit();
   modelId = resolveModelId(modelId);
-  languageMode = languageMode === "en" ? "en" : "es";
+  languageMode = resolveLanguageMode(languageMode);
   try {
     let pcm;
     try {
@@ -456,15 +443,15 @@ async function runTranscribe({ requestId, audioBase64, mimeType, languageMode, m
       type: MSG.PROGRESS,
       requestId,
       phase: "running",
-      message: "Transcribiendo…",
+      message: globalThis.waT("transcribing"),
     });
 
-    const language = resolveLanguage(languageMode);
-    const opts = whisperOpts(language);
     const audioSeconds = pcm.length / TARGET_SR;
 
     let asr = await ensurePipeline(modelId, requestId);
     stampWhisperMultilingual(asr);
+    const language = await pickLanguage(asr, pcm, languageMode);
+    const opts = whisperOpts(language);
     const gen = asr?.model?.generation_config;
     log("asr config", {
       requestId,
@@ -504,7 +491,7 @@ async function runTranscribe({ requestId, audioBase64, mimeType, languageMode, m
         type: MSG.PROGRESS,
         requestId,
         phase: "running",
-        message: "WebGPU falló, reintento en CPU…",
+        message: globalThis.waT("webgpuCpuRetry"),
       });
       pipe = null;
       loadedModelId = null;
@@ -517,10 +504,8 @@ async function runTranscribe({ requestId, audioBase64, mimeType, languageMode, m
       output = await transcribePcm(asr, pcm, opts);
       log("asr ok wasm");
     }
-    let text = (output && output.text ? output.text : String(output || "")).trim();
-    const polished = polishEnabled === true;
-    const words = polished ? [] : wordsFromWhisper(output);
-    text = await maybePolish(text, { enabled: polished });
+    const text = (output && output.text ? output.text : String(output || "")).trim();
+    const words = wordsFromWhisper(output);
     log("done", { requestId, language, device: loadedDevice, text: text.slice(0, 160) });
     send({
       type: MSG.RESULT,
@@ -551,7 +536,7 @@ async function enqueueTranscribe(msg) {
   log("queue TRANSCRIBE", {
     requestId: msg.requestId,
     modelId: msg.modelId || DEFAULT_MODEL,
-    languageMode: msg.languageMode === "en" ? "en" : "es",
+    languageMode: resolveLanguageMode(msg.languageMode),
     bytes: msg.byteLength || (msg.audioBase64 ? Math.round((msg.audioBase64.length * 3) / 4) : 0),
   });
   transcribeQueue.push(msg);

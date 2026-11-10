@@ -264,7 +264,10 @@ assert.equal(skipped.hosts.length, 1);
 assert.equal(skipped.hosts[0], kept.message);
 assert.equal(skipped.shadows.length, 0);
 
-const content = readFileSync(join(root, "src", "content.js"), "utf8");
+// The content script is split by site. These checks read all of it.
+const content = ["core", "features", "whatsapp", "x", "main"]
+  .map((part) => readFileSync(join(root, "src", `content-${part}.js`), "utf8"))
+  .join("\n");
 assert.match(content, /xDiscoverWaves/);
 assert.match(content, /function xBootScan/);
 assert.match(content, /function noteXAdded/);
@@ -315,27 +318,9 @@ freshPlay.isConnected = false;
 currentPlay = null;
 assert.equal(geometry.xBubbleRect(staleWrap, fullRow), null);
 
-// A tab's old interval stops after extension reload, including a race where
-// runtime.id is still present but sendMessage already throws.
-let tick;
-let stopped = false;
-let invalidated = false;
-const polling = createContext({
-  chrome: { runtime: { id: "test", sendMessage(_msg, callback) {
-    if (invalidated) throw new Error("Extension context invalidated.");
-    callback();
-  } } },
-  WA_MSG: { CHECK_COMPANION: "check" },
-  setInterval(callback) { tick = callback; return 123; },
-  clearInterval(id) { if (id === 123) stopped = true; },
-  console, LOG: "test",
-});
-runInContext(content.slice(content.indexOf("function startCompanionPolling("), content.indexOf("function start()")), polling);
-polling.startCompanionPolling();
-assert.equal(typeof tick, "function");
-invalidated = true;
-assert.doesNotThrow(() => tick());
-assert.equal(stopped, true);
+// Tabs do not poll the Mac app. The service worker checks it from one place.
+assert.doesNotMatch(content, /startCompanionPolling/);
+assert.doesNotMatch(content, /CHECK_COMPANION/);
 
 // Live X markup uses a message-owned data-hover-rail, not a page overlay.
 let prepends = 0;

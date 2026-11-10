@@ -1,4 +1,4 @@
-/* Where the note's buttons go. Classic script, before content.js. */
+/* Where the note's buttons go. Classic script, before content-core.js. */
 (function (g) {
   function isSlider(node) {
     if (!node) return false;

@@ -1,40 +1,41 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>TranscribeThem</title>
+    <title data-i18n="extName"></title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <header>
-      <h1>TranscribeThem</h1>
-      <p class="tag">WhatsApp y mensajes de X. 100% en el dispositivo.</p>
+      <h1 data-i18n="extName"></h1>
+      <p class="tag" data-i18n="popupTag"></p>
     </header>
 
     <div id="companion-box" class="companion-card">
       <div class="companion-title">
         <span id="companion-dot" class="dot"></span>
-        <span id="companion-status">Verificando app local…</span>
+        <span id="companion-status" data-i18n="companionChecking"></span>
       </div>
-      <p id="companion-hint" class="companion-hint">Transcribe con Parakeet si la app macOS está abierta.</p>
+      <p id="companion-hint" class="companion-hint" data-i18n="companionHintDefault"></p>
     </div>
 
     <label>
-      Idioma
+      <span data-i18n="labelLanguage"></span>
       <select id="language">
-        <option value="es" selected>Español</option>
-        <option value="en">English</option>
-        <option value="auto">Automático</option>
+        <option value="es" selected data-i18n="langEs"></option>
+        <option value="en" data-i18n="langEn"></option>
+        <option value="auto" data-i18n="langAuto"></option>
       </select>
     </label>
 
     <p id="error" class="error" hidden></p>
 
     <p class="footer">
-      <button type="button" id="open-app" class="link-btn">Abrir app</button>
-      <button type="button" id="open-options" class="link-btn">Ajustes</button>
+      <button type="button" id="open-app" class="link-btn" data-i18n="openApp"></button>
+      <button type="button" id="open-options" class="link-btn" data-i18n="openSettings"></button>
     </p>
 
+    <script src="i18n.js"></script>
     <script src="messages.js"></script>
     <script src="settings.js"></script>
     <script src="companion-sync.js"></script>

@@ -129,10 +129,14 @@ function add(parent, child) {
   assert.equal(mount.player, speedRow);
 }
 
-const content = readFileSync(join(root, "src", "content.js"), "utf8");
+// The content script is split by site. These checks read all of it.
+const content = ["core", "features", "whatsapp", "x", "main"]
+  .map((part) => readFileSync(join(root, "src", `content-${part}.js`), "utf8"))
+  .join("\n");
 const css = readFileSync(join(root, "src", "content.css"), "utf8");
 assert.match(content, /chooseMount/);
-assert.match(content, /Leyendo audio/);
+assert.match(readFileSync(join(root, "_locales", "es", "messages.json"), "utf8"), /Leyendo audio/);
+assert.match(content, /waT\("readingAudio"\)/);
 assert.doesNotMatch(content, /message: "Cargando modelo/);
 assert.doesNotMatch(content, /Otra vez/);
 assert.match(content, /debugMode/);

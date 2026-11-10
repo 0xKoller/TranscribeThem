@@ -1,4 +1,6 @@
-/* global waInitSettingsUi */
+/* global waInitSettingsUi, waApplyI18n */
+
+waApplyI18n(document);
 
 waInitSettingsUi({
   languageEl: document.getElementById("language"),

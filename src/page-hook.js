@@ -1,6 +1,6 @@
 /* MAIN world. Capture WA-decrypted audio without the user pressing Play. */
 (function () {
-  // Temporary probe for the missing X button. content.js removes this once it paints.
+  // Temporary probe for the missing X button. The content script removes this once it paints.
   function onXDocument() {
     const host = String((location && location.hostname) || "");
     if (/(^|\.)x\.com$|(^|\.)twitter\.com$/i.test(host)) return true;

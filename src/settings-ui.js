@@ -15,10 +15,10 @@
   function yn(el, value, unknown) {
     if (!el) return;
     if (value === true) {
-      el.textContent = "sí";
+      el.textContent = g.waT("yes");
       el.className = "yes";
     } else if (value === false) {
-      el.textContent = "no";
+      el.textContent = g.waT("no");
       el.className = "no";
     } else {
       el.textContent = unknown || "…";
@@ -55,6 +55,10 @@
       siteXEl,
       highlightEl,
       autoHintEl,
+      autoTranscribeEl,
+      cacheTranscriptsEl,
+      clearTranscriptsBtn,
+      clearTranscriptsStatusEl,
     } = els;
 
     let weakIgpu = false;
@@ -66,8 +70,7 @@
       const heavy = meta.key === "medium" || meta.key === "turbo";
       if (weakIgpu && heavy) {
         gpuWarnEl.hidden = false;
-        gpuWarnEl.textContent =
-          "Tu GPU parece integrada (Intel u similar). Medium y Turbo pueden quedarse sin memoria. Small es más seguro.";
+        gpuWarnEl.textContent = g.waT("gpuWarn");
       } else {
         gpuWarnEl.hidden = true;
         gpuWarnEl.textContent = "";
@@ -122,7 +125,7 @@
         title.textContent = m.label;
         if (m.recommended) {
           const badge = document.createElement("em");
-          badge.textContent = "recomendado";
+          badge.textContent = g.waT("recommended");
           title.appendChild(badge);
         }
         const hint = document.createElement("span");
@@ -152,14 +155,14 @@
     async function onModelPick(id) {
       selectCard(id);
       showError("");
-      showProgress(true, "Cargando modelo…", 0);
+      showProgress(true, g.waT("loadingModel"), 0);
       await waSetSettings({
         modelId: id,
         modelPicked: true,
         modelCached: false,
         lastError: null,
         downloadPhase: "loading",
-        downloadMessage: "Cargando modelo…",
+        downloadMessage: g.waT("loadingModel"),
         downloadPct: 0,
       });
       if (g.waPushCompanionSettings) await g.waPushCompanionSettings();
@@ -236,6 +239,48 @@
         if (g.waPushCompanionSettings) await g.waPushCompanionSettings();
       });
     }
+    // autoTranscribe and cacheTranscripts belong to this browser only. They
+    // are not pushed to the Mac app.
+    if (autoTranscribeEl) {
+      autoTranscribeEl.addEventListener("change", async () => {
+        await waSetSettings({ autoTranscribe: autoTranscribeEl.checked });
+      });
+    }
+
+    let clearedTimer = 0;
+    function showCleared(message) {
+      if (!clearTranscriptsStatusEl) return;
+      clearTimeout(clearedTimer);
+      clearTranscriptsStatusEl.textContent = message;
+      clearTranscriptsStatusEl.hidden = !message;
+      if (message) clearedTimer = setTimeout(() => showCleared(""), 4000);
+    }
+
+    async function clearTranscripts() {
+      try {
+        if (g.WaTranscriptCache) await g.WaTranscriptCache.clear();
+        else await chrome.storage.local.set({ transcriptCache: {} });
+        showCleared(g.waT("clearedTranscripts"));
+      } catch (_) {
+        showCleared(g.waT("clearTranscriptsFailed"));
+      }
+    }
+
+    if (cacheTranscriptsEl) {
+      cacheTranscriptsEl.addEventListener("change", async () => {
+        const on = cacheTranscriptsEl.checked;
+        await waSetSettings({ cacheTranscripts: on });
+        if (!on) await clearTranscripts();
+        else showCleared("");
+      });
+    }
+    if (clearTranscriptsBtn) {
+      clearTranscriptsBtn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        clearTranscripts();
+      });
+    }
+
     for (const [id, element] of [["whatsapp", siteEl], ["x", siteXEl]]) {
       if (!element) continue;
       element.addEventListener("change", async () => {
@@ -272,7 +317,7 @@
         }
       }
       if (msg.type === WA_MSG.PROGRESS && !msg.requestId) {
-        showProgress(true, msg.message || "Cargando modelo…", msg.pct);
+        showProgress(true, msg.message || g.waT("loadingModel"), msg.pct);
       }
       if (msg.type === WA_MSG.ERROR && !msg.requestId) {
         showProgress(false, "", 0);
@@ -292,6 +337,8 @@
         if (val) showError(val);
         else showError("");
       }
+      if (changes.autoTranscribe && autoTranscribeEl) autoTranscribeEl.checked = changes.autoTranscribe.newValue === true;
+      if (changes.cacheTranscripts && cacheTranscriptsEl) cacheTranscriptsEl.checked = changes.cacheTranscripts.newValue !== false;
       if (changes.modelCached) yn(cacheEl, changes.modelCached.newValue === true);
       if (changes.webgpu) yn(webgpuEl, changes.webgpu.newValue);
       if (changes.device && deviceEl) deviceEl.textContent = changes.device.newValue || "—";
@@ -307,7 +354,7 @@
           const pct = changes.downloadPct ? changes.downloadPct.newValue : null;
           const message = changes.downloadMessage
             ? changes.downloadMessage.newValue
-            : "Cargando modelo…";
+            : g.waT("loadingModel");
           showProgress(true, message, pct);
         } else if (phase === "" || phase === "error") {
           showProgress(false, "", 0);
@@ -328,22 +375,22 @@
           companionBoxEl.classList.remove("is-offline");
           if (companionStatusEl) {
             companionStatusEl.textContent = res.data.ready
-              ? "App local: Conectada (Parakeet v3)"
-              : "App local: Cargando modelo…";
+              ? g.waT("appConnected")
+              : g.waT("appLoadingStatus");
           }
           if (companionHintEl) {
             companionHintEl.textContent = res.data.ready
-              ? "⚡ Transcribiendo con Parakeet v3 a ~100 ms (CoreML)."
-              : "El modelo Parakeet v3 se está preparando en la app.";
+              ? g.waT("parakeetFast")
+              : g.waT("parakeetPreparing");
           }
         } else {
           companionBoxEl.classList.add("is-offline");
           companionBoxEl.classList.remove("is-online");
           if (companionStatusEl) {
-            companionStatusEl.textContent = "App local: No detectada";
+            companionStatusEl.textContent = g.waT("appNotDetected");
           }
           if (companionHintEl) {
-            companionHintEl.textContent = "Usando Whisper en el navegador. Abrí la app TranscribeThem para máxima velocidad.";
+            companionHintEl.textContent = g.waT("whisperFallbackHint");
           }
         }
       } catch (_) {
@@ -362,13 +409,15 @@
     syncEngine(settings.engineMode || "auto");
     if (debugEl) debugEl.checked = settings.debugMode === true;
     if (highlightEl) highlightEl.checked = settings.highlightWords !== false;
+    if (autoTranscribeEl) autoTranscribeEl.checked = settings.autoTranscribe === true;
+    if (cacheTranscriptsEl) cacheTranscriptsEl.checked = settings.cacheTranscripts !== false;
     if (siteEl) siteEl.checked = !settings.sites || settings.sites.whatsapp !== false;
     if (siteXEl) siteXEl.checked = !settings.sites || settings.sites.x !== false;
     selectCard(settings.modelId);
     renderStatus(settings, null);
     if (settings.lastError) showError(settings.lastError);
     if (settings.downloadPhase === "loading") {
-      showProgress(true, settings.downloadMessage || "Cargando modelo…", settings.downloadPct);
+      showProgress(true, settings.downloadMessage || g.waT("loadingModel"), settings.downloadPct);
     }
     chrome.runtime.sendMessage({ type: WA_MSG.GET_STATUS }, () => {
       void chrome.runtime.lastError;

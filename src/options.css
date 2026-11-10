@@ -35,3 +35,13 @@ body.options {
   color: var(--ink);
   font-weight: 650;
 }
+
+.inline-status {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.inline-status[hidden] {
+  display: none;
+}

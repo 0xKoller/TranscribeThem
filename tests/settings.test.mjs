@@ -3,11 +3,14 @@ import { createContext, runInContext } from "node:vm";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
+import { chromeI18n } from "./helpers/i18n-chrome.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = readFileSync(join(root, "src", "settings.js"), "utf8");
-const ctx = createContext({ globalThis: {}, URL });
+const i18n = readFileSync(join(root, "src", "i18n.js"), "utf8");
+const ctx = createContext({ globalThis: {}, URL, chrome: { i18n: chromeI18n("es") } });
 ctx.globalThis = ctx;
+runInContext(i18n, ctx);
 runInContext(src, ctx);
 const { WA_DEFAULTS, WA_MODELS, WA_ALLOWED_MODELS } = ctx;
 
@@ -26,7 +29,12 @@ assert.equal(ctx.waNormalizeEngineMode("companion", false), "companion");
 assert.equal(ctx.waAfterCompanionMiss("companion", true), "fail");
 assert.equal(ctx.waAfterCompanionMiss("auto", true), "browser");
 assert.equal(ctx.waCompanionLanguage("auto"), "none");
-assert.equal(ctx.waWhisperLanguage("auto"), "es");
+assert.equal(ctx.waWhisperLanguage("auto"), "auto");
+assert.equal(ctx.waWhisperLanguage("es"), "es");
+assert.equal(ctx.waWhisperLanguage(undefined), "es");
+assert.equal(WA_DEFAULTS.autoTranscribe, false);
+assert.equal(WA_DEFAULTS.cacheTranscripts, true);
+assert.equal(JSON.stringify(ctx.waNormalizeFeatures({ summarize: true, translate: 1 })), JSON.stringify({ summarize: true, translate: false }));
 assert.equal(ctx.waSiteId("https://web.whatsapp.com/send"), "whatsapp");
 assert.equal(ctx.waSiteId("https://example.com/chat"), "");
 for (const host of ["x.com", "www.x.com", "twitter.com", "mobile.twitter.com"]) {

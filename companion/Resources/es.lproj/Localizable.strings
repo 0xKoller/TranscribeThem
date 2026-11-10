@@ -19,6 +19,7 @@
 "Avanzado" = "Avanzado";
 "Borrar textos" = "Borrar textos";
 "Borrar textos guardados…" = "Borrar textos guardados…";
+"Buscar en el texto o el sitio" = "Buscar en el texto o el sitio";
 "Cargando" = "Cargando";
 "Cargando el modelo" = "Cargando el modelo";
 "Cargando el modelo local" = "Cargando el modelo local";
@@ -57,6 +58,7 @@
 "Esta app" = "Esta app";
 "Estado" = "Estado";
 "Está bajando el modelo. La primera vez tarda." = "Está bajando el modelo. La primera vez tarda.";
+"Exportar" = "Exportar";
 "Extensión" = "Extensión";
 "Fallida" = "Fallida";
 "Fallidas" = "Fallidas";
@@ -92,7 +94,10 @@
 "Multilingüe, incluido español. Procesamiento local con Core ML." = "Multilingüe, incluido español. Procesamiento local con Core ML.";
 "No cambia el idioma del audio. Configuralo en Motor y modelos." = "No cambia el idioma del audio. Configuralo en Motor y modelos.";
 "No hay notas guardadas para este período y sitio." = "No hay notas guardadas para este período y sitio.";
+"No hay notas que coincidan con la búsqueda." = "No hay notas que coincidan con la búsqueda.";
 "No se abre sola al iniciar sesión." = "No se abre sola al iniciar sesión.";
+"No se pudo escribir el archivo." = "No se pudo escribir el archivo.";
+"No se pudo exportar" = "No se pudo exportar";
 "No se pudieron borrar los textos. Reintentá." = "No se pudieron borrar los textos. Reintentá.";
 "No se pudo cargar" = "No se pudo cargar";
 "No se pudo cargar el modelo" = "No se pudo cargar el modelo";

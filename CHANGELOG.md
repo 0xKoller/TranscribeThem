@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 — 2026-11-10
+
+- Transcripts are remembered per message in the browser (last 300), with a setting and a clear button.
+- Optional auto-transcribe for voice notes visible in the open chat, with the Mac app as the engine. Off by default.
+- Summarize and Translate actions on a transcript, done on the Mac with Apple's on-device model (macOS 26 or later).
+- Extension interface in Spanish and English.
+- Automatic language detection per note with in-browser Whisper.
+- The browser loads Whisper only when it is the engine that will run; a note waits for the Mac app while its model loads.
+- The Mac app listens on 127.0.0.1 only, caps request size, and decodes audio once.
+- Local history in the Mac app: search, export to text, 500 entries.
+- New extension permission: `alarms`, for one periodic check of the Mac app instead of one per tab.
+
 ## 0.3.0 — 2026-11-05
 
 - Redesigned native Mac app with light/dark appearance and a shared waveform identity.

@@ -1,4 +1,4 @@
-/* X message voice notes. Classic script, loaded before content.js. */
+/* X message voice notes. Classic script, loaded before content-core.js. */
 (function (g) {
   const COMPOSER_IDS = {
     "dm-composer-form": 1,

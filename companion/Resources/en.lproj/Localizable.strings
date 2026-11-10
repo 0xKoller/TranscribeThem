@@ -19,6 +19,7 @@
 "Avanzado" = "Advanced";
 "Borrar textos" = "Delete transcripts";
 "Borrar textos guardados…" = "Delete saved transcripts…";
+"Buscar en el texto o el sitio" = "Search text or site";
 "Cargando" = "Loading";
 "Cargando el modelo" = "Loading model";
 "Cargando el modelo local" = "Loading local model";
@@ -57,6 +58,7 @@
 "Esta app" = "This app";
 "Estado" = "Status";
 "Está bajando el modelo. La primera vez tarda." = "Preparing the model. The first run takes a little longer.";
+"Exportar" = "Export";
 "Extensión" = "Extension";
 "Fallida" = "Failed";
 "Fallidas" = "Failed";
@@ -92,7 +94,10 @@
 "Multilingüe, incluido español. Procesamiento local con Core ML." = "Multilingual, including Spanish. Local processing with Core ML.";
 "No cambia el idioma del audio. Configuralo en Motor y modelos." = "This does not change the audio language. Set that in Engine & models.";
 "No hay notas guardadas para este período y sitio." = "No saved notes for this period and site.";
+"No hay notas que coincidan con la búsqueda." = "No notes match the search.";
 "No se abre sola al iniciar sesión." = "Does not launch automatically at login.";
+"No se pudo escribir el archivo." = "Could not write the file.";
+"No se pudo exportar" = "Could not export";
 "No se pudieron borrar los textos. Reintentá." = "Could not delete transcripts. Try again.";
 "No se pudo cargar" = "Could not load";
 "No se pudo cargar el modelo" = "Could not load model";

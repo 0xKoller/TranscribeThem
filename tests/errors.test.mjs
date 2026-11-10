@@ -3,11 +3,14 @@ import { createContext, runInContext } from "node:vm";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
+import { chromeI18n } from "./helpers/i18n-chrome.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = readFileSync(join(root, "src", "errors.js"), "utf8");
-const ctx = createContext({ globalThis: {} });
+const i18n = readFileSync(join(root, "src", "i18n.js"), "utf8");
+const ctx = createContext({ globalThis: {}, chrome: { i18n: chromeI18n("es") } });
 ctx.globalThis = ctx;
+runInContext(i18n, ctx);
 runInContext(src, ctx);
 const { mapError, WA_ERROR_COPY, waJobErrorCode } = ctx;
 
@@ -28,6 +31,8 @@ assert.equal(
 assert.match(mapError(new Error("weird")), /Reintentar/);
 assert.equal(waJobErrorCode(Object.assign(new Error("aborted"), { name: "AbortError" })), "timeout");
 assert.equal(waJobErrorCode(new Error("Companion HTTP 503")), "model_loading");
+assert.equal(waJobErrorCode(Object.assign(new Error("The operation timed out."), { name: "TimeoutError" })), "timeout");
+assert.equal(waJobErrorCode(new Error("signal timed out")), "timeout");
 assert.equal(waJobErrorCode(new Error("No pude bajar este audio. Reintentá.")), "no_audio");
 assert.equal(waJobErrorCode(new Error("No pude decodificar el audio (Opus).")), "decode");
 assert.equal(waJobErrorCode(new Error("Companion HTTP 500")), "http");

@@ -1,4 +1,6 @@
-/* global waInitSettingsUi */
+/* global waInitSettingsUi, waApplyI18n */
+
+waApplyI18n(document);
 
 waInitSettingsUi({
   languageEl: document.getElementById("language"),
@@ -20,4 +22,8 @@ waInitSettingsUi({
   siteXEl: document.getElementById("site-x"),
   highlightEl: document.getElementById("highlight-words"),
   autoHintEl: document.getElementById("auto-hint"),
+  autoTranscribeEl: document.getElementById("auto-transcribe"),
+  cacheTranscriptsEl: document.getElementById("cache-transcripts"),
+  clearTranscriptsBtn: document.getElementById("clear-transcripts"),
+  clearTranscriptsStatusEl: document.getElementById("clear-transcripts-status"),
 });

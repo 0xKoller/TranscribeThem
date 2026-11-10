@@ -1,68 +1,68 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Ajustes — TranscribeThem</title>
+    <title data-i18n="optTitle"></title>
     <link rel="stylesheet" href="popup.css" />
     <link rel="stylesheet" href="options.css" />
   </head>
   <body class="options">
     <header>
-      <h1>TranscribeThem</h1>
-      <p class="tag">Ajustes. 100% en el dispositivo.</p>
+      <h1 data-i18n="extName"></h1>
+      <p class="tag" data-i18n="optTag"></p>
     </header>
 
     <section class="panel">
-      <h2>Dónde aparece</h2>
+      <h2 data-i18n="optWhere"></h2>
       <label class="debug-toggle">
         <input type="checkbox" id="site-whatsapp" checked />
-        WhatsApp Web
+        <span data-i18n="siteWhatsapp"></span>
       </label>
       <label class="debug-toggle">
         <input type="checkbox" id="site-x" checked />
-        X
+        <span data-i18n="siteX"></span>
       </label>
-      <p class="hint muted">Si lo apagás, el botón desaparece en ese sitio.</p>
+      <p class="hint muted" data-i18n="siteHint"></p>
     </section>
 
     <section class="panel">
-      <h2>Cómo transcribe</h2>
+      <h2 data-i18n="optHow"></h2>
       <label>
-        Idioma
+        <span data-i18n="labelLanguage"></span>
         <select id="language">
-          <option value="es" selected>Español</option>
-          <option value="en">English</option>
-          <option value="auto">Automático</option>
+          <option value="es" selected data-i18n="langEs"></option>
+          <option value="en" data-i18n="langEn"></option>
+          <option value="auto" data-i18n="langAuto"></option>
         </select>
       </label>
-      <p id="auto-hint" class="hint muted" hidden>Parakeet detecta el idioma. Si transcribe el navegador, usa Español.</p>
+      <p id="auto-hint" class="hint muted" data-i18n="optAutoHint" hidden></p>
 
-      <p class="section-label">Motor</p>
+      <p class="section-label" data-i18n="sectionEngine"></p>
       <div id="engines" class="models">
         <label class="model-card">
           <input type="radio" name="engine" value="auto" />
           <span class="model-card-body">
-            <span class="model-card-title">Automático</span>
-            <span class="model-card-hint">Usa esta app. Si no está, transcribe en el navegador.</span>
+            <span class="model-card-title" data-i18n="engineAuto"></span>
+            <span class="model-card-hint" data-i18n="engineAutoHint"></span>
           </span>
         </label>
         <label class="model-card">
           <input type="radio" name="engine" value="companion" />
           <span class="model-card-body">
-            <span class="model-card-title">Solo esta app</span>
-            <span class="model-card-hint">Si la app no responde, la nota falla y no usa el navegador.</span>
+            <span class="model-card-title" data-i18n="engineCompanion"></span>
+            <span class="model-card-hint" data-i18n="engineCompanionHint"></span>
           </span>
         </label>
         <label class="model-card">
           <input type="radio" name="engine" value="browser" />
           <span class="model-card-body">
-            <span class="model-card-title">Solo el navegador</span>
-            <span class="model-card-hint">Siempre transcribe con Whisper en Chrome.</span>
+            <span class="model-card-title" data-i18n="engineBrowser"></span>
+            <span class="model-card-hint" data-i18n="engineBrowserHint"></span>
           </span>
         </label>
       </div>
 
-      <p class="section-label">Modelo del navegador</p>
+      <p class="section-label" data-i18n="sectionBrowserModel"></p>
       <div id="models" class="models"></div>
       <p id="gpu-warn" class="warn" hidden></p>
       <div id="progress" class="progress" hidden>
@@ -72,65 +72,75 @@
     </section>
 
     <section class="panel">
-      <h2>En la nota</h2>
+      <h2 data-i18n="optOnNote"></h2>
       <label class="debug-toggle">
         <input type="checkbox" id="debug-mode" />
-        Mostrar el tiempo de cada nota
+        <span data-i18n="showTiming"></span>
       </label>
       <label class="debug-toggle">
         <input type="checkbox" id="highlight-words" checked />
-        Resaltar la palabra mientras suena
+        <span data-i18n="highlightWords"></span>
       </label>
+      <label class="debug-toggle">
+        <input type="checkbox" id="auto-transcribe" />
+        <span data-i18n="optAutoTranscribe"></span>
+      </label>
+      <p class="hint muted" data-i18n="optAutoTranscribeHint"></p>
+    </section>
+
+    <section class="panel">
+      <h2 data-i18n="savedHeading"></h2>
+      <label class="debug-toggle">
+        <input type="checkbox" id="cache-transcripts" checked />
+        <span data-i18n="cacheTranscripts"></span>
+      </label>
+      <p class="hint muted" data-i18n="cacheHint"></p>
+      <p>
+        <button type="button" id="clear-transcripts" class="link-btn" data-i18n="clearTranscripts"></button>
+        <span id="clear-transcripts-status" class="inline-status" role="status" hidden></span>
+      </p>
     </section>
 
     <p id="error" class="error" hidden></p>
 
     <section class="panel">
-      <h2>Avanzado</h2>
+      <h2 data-i18n="advanced"></h2>
       <dl class="status">
         <div>
-          <dt>WebGPU</dt>
+          <dt data-i18n="labelWebgpu"></dt>
           <dd id="webgpu">…</dd>
         </div>
         <div>
-          <dt>Cache</dt>
+          <dt data-i18n="labelCache"></dt>
           <dd id="cache">…</dd>
         </div>
         <div>
-          <dt>Motor</dt>
+          <dt data-i18n="labelDevice"></dt>
           <dd id="device">—</dd>
         </div>
       </dl>
-      <p>Modelo en memoria: <strong id="loaded-model">—</strong></p>
-      <p>Versión: <strong id="version">—</strong></p>
-      <p>Puerto local: 8765</p>
-      <p><button type="button" id="open-app" class="link-btn">Abrir la app</button></p>
+      <p><span data-i18n="modelInMemory"></span> <strong id="loaded-model">—</strong></p>
+      <p><span data-i18n="optVersion"></span> <strong id="version">—</strong></p>
+      <p data-i18n="optLocalPort"></p>
+      <p><button type="button" id="open-app" class="link-btn" data-i18n="openTheApp"></button></p>
     </section>
 
     <section class="panel">
-      <h2>Privacidad</h2>
-      <p>
-        El audio de la nota de voz se decodifica y se transcribe en esta máquina.
-        No se envía a ningún servidor de transcripción. No hay API keys.
-      </p>
-      <p>
-        La primera vez se bajan los pesos del modelo desde Hugging Face (gratis) y
-        quedan en el cache del navegador. Después funciona offline.
-      </p>
+      <h2 data-i18n="privacy"></h2>
+      <p data-i18n="privacyBody"></p>
+      <p data-i18n="privacyDownload"></p>
     </section>
 
     <section class="panel">
-      <h2>Si no aparece el botón</h2>
-      <p>
-        Para WhatsApp Web, revisá que esté prendido arriba. Recargá la extensión
-        y después la pestaña de WhatsApp Web o de Mensajes en X
-        (x.com/i/chat o x.com/messages). El hook de audio corre al inicio de la página.
-      </p>
+      <h2 data-i18n="noButton"></h2>
+      <p data-i18n="noButtonBody"></p>
     </section>
 
+    <script src="i18n.js"></script>
     <script src="messages.js"></script>
     <script src="settings.js"></script>
     <script src="companion-sync.js"></script>
+    <script src="transcript-cache.js"></script>
     <script src="settings-ui.js"></script>
     <script src="options.js"></script>
   </body>

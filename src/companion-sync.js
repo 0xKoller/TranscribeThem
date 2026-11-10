@@ -8,6 +8,15 @@
     return "keep";
   };
 
+  // How long to wait for the app on one note. Voice notes are Opus at roughly
+  // 2 KB per second; allow half of real time on top of a fixed floor, so a long
+  // note (or one that needs the ffmpeg path) is not cut off at 20 s.
+  g.waCompanionTimeoutMs = function waCompanionTimeoutMs(byteLength) {
+    const bytes = Number(byteLength) || 0;
+    const audioSeconds = bytes / 2000;
+    return Math.round(Math.min(180000, 20000 + audioSeconds * 500));
+  };
+
   async function base() {
     const settings = await g.waGetSettings();
     return `http://127.0.0.1:${settings.companionPort || 8765}`;
@@ -34,7 +43,6 @@
         useCompanion: settings.engineMode !== "browser",
         engineMode: settings.engineMode,
         debugMode: settings.debugMode,
-        polishEnabled: settings.polishEnabled,
         sites: settings.sites,
         highlightWords: settings.highlightWords,
         openAtLaunch: settings.openAtLaunch === true,
@@ -73,7 +81,6 @@
         useCompanion: engineMode !== "browser",
         engineMode,
         debugMode: remote.debugMode === true,
-        polishEnabled: remote.polishEnabled === true,
         sites: g.waNormalizeSites(remote.sites),
         highlightWords: remote.highlightWords !== false,
         openAtLaunch: remote.openAtLaunch === true,
@@ -125,6 +132,46 @@
     } catch (_) {
       /* app cerrada */
     }
+  };
+
+  function textError(code) {
+    if (code === "unavailable") return g.waT("textUnavailable");
+    if (code === "bad_request") return g.waT("textBadRequest");
+    if (code === "offline") return g.waT("textOffline");
+    return g.waT("textFailed");
+  }
+
+  // Summary or translation of a transcript, done by the Mac app on-device.
+  g.waCompanionTextAction = async function waCompanionTextAction(action, text, targetLanguage) {
+    if (action !== "summarize" && action !== "translate") {
+      return { ok: false, code: "bad_request", error: textError("bad_request") };
+    }
+    let res;
+    try {
+      res = await fetch(`${await base()}/v1/text`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          text: String(text || ""),
+          targetLanguage: targetLanguage === "es" ? "es" : "en",
+        }),
+        signal: AbortSignal.timeout(90000),
+      });
+    } catch (_) {
+      return { ok: false, code: "offline", error: textError("offline") };
+    }
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (_) {
+      /* no JSON body */
+    }
+    if (res.ok && data && data.ok && typeof data.text === "string" && data.text.trim()) {
+      return { ok: true, text: data.text.trim() };
+    }
+    const code = data && (data.code === "unavailable" || data.code === "bad_request" || data.code === "failed" || data.code === "offline") ? data.code : res.status === 404 ? "unavailable" : "failed";
+    return { ok: false, code, error: textError(code) };
   };
 
   g.waOpenCompanion = async function waOpenCompanion() {

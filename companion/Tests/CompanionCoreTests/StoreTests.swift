@@ -116,18 +116,20 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(StatsStore.percentile([100, 200, 300, 400, 500], 0.95), 500)
         XCTAssertNil(StatsStore.percentile([], 0.5))
 
+        XCTAssertEqual(StatsStore.recentLimit, 500)
         let store = StatsStore(directory: tempDir())
-        for i in 0..<55 {
+        let kept = StatsStore.recentLimit + 5
+        for i in 0..<kept {
             store.record(audioSeconds: 1.5, transcribeMs: 100 + i, engine: i.isMultiple(of: 2) ? "parakeet" : "whisper", model: "m", ok: true)
         }
         store.record(audioSeconds: 9, transcribeMs: 10, engine: "whisper", model: "secret text should not exist", ok: false)
         let snap = store.snapshot()
-        XCTAssertEqual(snap.processedCount, 55)
+        XCTAssertEqual(snap.processedCount, kept)
         XCTAssertEqual(snap.failCount, 1)
         XCTAssertEqual(snap.recent.count, StatsStore.recentLimit)
-        XCTAssertEqual(snap.okCount, 55)
-        XCTAssertEqual(snap.totalAudioSeconds, 55 * 1.5, accuracy: 0.001)
-        XCTAssertEqual(snap.parakeetCount + snap.whisperCount, 55)
+        XCTAssertEqual(snap.okCount, kept)
+        XCTAssertEqual(snap.totalAudioSeconds, Double(kept) * 1.5, accuracy: 0.001)
+        XCTAssertEqual(snap.parakeetCount + snap.whisperCount, kept)
         XCTAssertFalse(snap.recent.contains { $0.model.contains("secret text") && $0.ok })
         XCTAssertNotNil(snap.medianMs)
         XCTAssertNotNil(snap.p95Ms)

@@ -45,7 +45,7 @@ rm -rf "$DIST"
 mkdir -p "$DIST/ext-root/$EXT_DIR_NAME" "$DIST/dmg-root"
 
 cp "$DIR/manifest.json" "$DIST/ext-root/$EXT_DIR_NAME/"
-cp -R "$DIR/src" "$DIR/vendor" "$DIST/ext-root/$EXT_DIR_NAME/"
+cp -R "$DIR/src" "$DIR/vendor" "$DIR/_locales" "$DIST/ext-root/$EXT_DIR_NAME/"
 mkdir -p "$DIST/ext-root/$EXT_DIR_NAME/icons"
 cp "$DIR/icons/icon16.png" "$DIR/icons/icon32.png" "$DIR/icons/icon48.png" "$DIR/icons/icon128.png" "$DIST/ext-root/$EXT_DIR_NAME/icons/"
 find "$DIST/ext-root" -name '*.map' -delete

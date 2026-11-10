@@ -1,6 +1,7 @@
 import Charts
 import CompanionCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum AppSection: String, CaseIterable, Identifiable {
     case home
@@ -53,6 +54,8 @@ private struct CompanionContent: View {
     @State private var section: AppSection? = .home
     @State private var range: ActivityRange = .week
     @State private var activitySite = "all"
+    @State private var activityQuery = ""
+    @State private var exportFailed = false
 
     var body: some View {
         NavigationSplitView {
@@ -276,11 +279,18 @@ private struct CompanionContent: View {
                 .foregroundStyle(palette.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .alert(L("No se pudo exportar"), isPresented: $exportFailed) {
+            Button(L("Cerrar"), role: .cancel) {}
+        } message: {
+            Text(L("No se pudo escribir el archivo."))
+        }
     }
 
     private var recentList: some View {
-        let jobs = model.stats.recentActivity(range).filter { activitySite == "all" || $0.site == activitySite }
+        let scoped = model.stats.recentActivity(range).filter { activitySite == "all" || $0.site == activitySite }
+        let jobs = ActivityHistory.filter(scoped, query: activityQuery, siteLabel: siteLabel)
         let groups = grouped(jobs)
+        let canExport = !ActivityHistory.exportable(jobs).isEmpty
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(L("Transcripciones recientes")).font(.headline)
@@ -293,11 +303,21 @@ private struct CompanionContent: View {
                 }
                 .frame(maxWidth: 200)
             }
+            HStack(spacing: 8) {
+                TextField(L("Buscar en el texto o el sitio"), text: $activityQuery)
+                    .textFieldStyle(.roundedBorder)
+                Button(L("Exportar")) {
+                    exportTranscripts(jobs)
+                }
+                .disabled(!canExport)
+            }
             Text(LF("Se conservan detalles de las últimas %ld notas. El filtro se aplica a ese historial.", StatsStore.recentLimit))
                 .font(.caption)
                 .foregroundStyle(palette.secondary)
             if jobs.isEmpty {
-                Text(L("No hay notas guardadas para este período y sitio."))
+                Text(activityQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                     ? L("No hay notas guardadas para este período y sitio.")
+                     : L("No hay notas que coincidan con la búsqueda."))
                     .foregroundStyle(palette.secondary)
             }
             ForEach(groups, id: \.day) { group in
@@ -353,6 +373,26 @@ private struct CompanionContent: View {
                     .background(palette.surface, in: RoundedRectangle(cornerRadius: 10))
                 }
             }
+        }
+    }
+
+    private func exportTranscripts(_ jobs: [JobRecord]) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.nameFieldStringValue = "transcripciones.txt"
+        panel.title = L("Exportar")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let formatter = DateFormatter()
+        formatter.locale = AppLanguage.currentLocale
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        let text = ActivityHistory.exportText(jobs, formatDate: { formatter.string(from: $0) }, siteLabel: siteLabel)
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            exportFailed = true
         }
     }
 

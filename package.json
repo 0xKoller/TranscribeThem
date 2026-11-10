@@ -1,6 +1,6 @@
 {
   "name": "transcribethem",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Chrome MV3: transcribe WhatsApp Web and X DM voice notes on-device (Whisper + WebGPU). No API keys.",
   "scripts": {
@@ -8,7 +8,7 @@
     "build:companion": "./scripts/package-companion.sh",
     "package:release": "./scripts/package-release.sh",
     "icons": "python3 scripts/icons.py",
-    "test": "node tests/errors.test.mjs && node tests/queue.test.mjs && node tests/settings.test.mjs && node tests/download-progress.test.mjs && node tests/extract-match.test.mjs && node tests/ui-mount.test.mjs && node tests/words.test.mjs && node tests/companion-sync.test.mjs && node tests/x-find.test.mjs && node tests/transcribe-start.test.mjs"
+    "test": "node tests/errors.test.mjs && node tests/queue.test.mjs && node tests/settings.test.mjs && node tests/download-progress.test.mjs && node tests/extract-match.test.mjs && node tests/ui-mount.test.mjs && node tests/words.test.mjs && node tests/companion-sync.test.mjs && node tests/x-find.test.mjs && node tests/transcribe-start.test.mjs && node tests/version.test.mjs && node tests/background.test.mjs && node tests/transcript-cache.test.mjs && node tests/content-load.test.mjs && node tests/content-features.test.mjs && node tests/options-ui.test.mjs && node tests/i18n.test.mjs"
   },
   "engines": {
     "node": ">=18"

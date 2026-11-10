@@ -11,7 +11,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelega
 
     private var server: HTTPServer?
     private let transcriber = Transcriber.shared
-    private let port: UInt16 = 8765
+    // WA_COMPANION_PORT lets a development build run next to the installed app.
+    private let port: UInt16 = ProcessInfo.processInfo.environment["WA_COMPANION_PORT"].flatMap { UInt16($0) } ?? 8765
     private let service = CompanionService(directory: AppSupport.directory())
     private var model: AppModel!
     private var window: NSWindow?

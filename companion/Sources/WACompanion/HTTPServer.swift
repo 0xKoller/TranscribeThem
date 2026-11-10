@@ -38,9 +38,12 @@ public final class HTTPServer: @unchecked Sendable {
     }
 
     public func start() throws {
+        guard let nwPort = NWEndpoint.Port(rawValue: port) else {
+            throw NSError(domain: "HTTPServer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid port"])
+        }
         let params = NWParameters.tcp
-        let nwPort = NWEndpoint.Port(rawValue: port) ?? 8765
-        let l = try NWListener(using: params, on: nwPort)
+        params.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: nwPort)
+        let l = try NWListener(using: params)
         self.listener = l
 
         l.stateUpdateHandler = { [weak self] state in
@@ -127,17 +130,26 @@ public final class HTTPServer: @unchecked Sendable {
         if req.method == "GET" && (path == "/health" || path == "/status" || path == "/") {
             let stats = service.stats.snapshot()
             let isReady = await transcriber.ready
+            let features = OnDeviceTextActions.features
             let respObj: [String: Any] = [
                 "ok": true,
                 "status": "ok",
                 "ready": isReady,
                 "engine": "parakeet",
                 "model": await transcriber.modelIdentifier,
-                "version": "0.3.0",
+                "version": BundleVersion.current(),
                 "processedCount": stats.processedCount,
-                "totalAudioSeconds": stats.totalAudioSeconds
+                "totalAudioSeconds": stats.totalAudioSeconds,
+                "features": [
+                    "summarize": features.summarize,
+                    "translate": features.translate,
+                ],
             ]
             return json(respObj, status: 200, text: "OK", headers: corsHeaders)
+        }
+
+        if req.method == "POST" && path == "/v1/text" {
+            return await handleText(req, headers: corsHeaders)
         }
 
         if path == "/v1/settings" && (req.method == "GET" || req.method == "POST") {
@@ -270,6 +282,60 @@ public final class HTTPServer: @unchecked Sendable {
         return HTTPResponse(statusCode: 404, statusText: "Not Found", headers: corsHeaders, body: notFound)
     }
 
+    private func handleText(_ req: HTTPRequest, headers: [String: String]) async -> HTTPResponse {
+        guard let obj = try? JSONSerialization.jsonObject(with: req.body) as? [String: Any] else {
+            return textFailure(code: .badRequest, message: "El cuerpo JSON no es válido.", status: 400, headers: headers)
+        }
+        let action = obj["action"] as? String
+        let text = obj["text"] as? String
+        let language = obj["targetLanguage"] as? String
+        switch TextRequests.validate(action: action, text: text, targetLanguage: language) {
+        case .rejected(_, let message):
+            return textFailure(code: .badRequest, message: message, status: 400, headers: headers)
+        case .ready(let action, let prompt):
+            guard OnDeviceTextActions.isReady else {
+                return textFailure(code: .unavailable, message: TextRequests.unavailableMessage, status: 501, headers: headers)
+            }
+            do {
+                let result = try await OnDeviceTextActions.generate(prompt)
+                return json([
+                    "ok": true,
+                    "text": result,
+                    "action": action.rawValue,
+                ], status: 200, text: "OK", headers: headers)
+            } catch let error as OnDeviceTextError where error == .unavailable {
+                return textFailure(code: .unavailable, message: TextRequests.unavailableMessage, status: 501, headers: headers)
+            } catch {
+                let message = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+                return textFailure(
+                    code: .failed,
+                    message: message.isEmpty ? TextRequests.emptyResultMessage : message,
+                    status: 500,
+                    headers: headers
+                )
+            }
+        }
+    }
+
+    private func textFailure(
+        code: TextActionFailureCode,
+        message: String,
+        status: Int,
+        headers: [String: String]
+    ) -> HTTPResponse {
+        let statusText: String
+        switch status {
+        case 400: statusText = "Bad Request"
+        case 501: statusText = "Not Implemented"
+        default: statusText = "Internal Server Error"
+        }
+        return json([
+            "ok": false,
+            "error": message,
+            "code": code.rawValue,
+        ], status: status, text: statusText, headers: headers)
+    }
+
     private func json(_ obj: [String: Any], status: Int, text: String, headers: [String: String]) -> HTTPResponse {
         var headers = headers
         headers["Content-Type"] = "application/json; charset=utf-8"
@@ -341,6 +407,9 @@ struct HTTPResponse: Sendable {
 }
 
 private final class ConnectionHandler: @unchecked Sendable {
+    static let maxHeaderBytes = 64 * 1024
+    static let maxBodyBytes = 64 * 1024 * 1024
+
     let id: UUID
     let connection: NWConnection
     let onRequest: @Sendable (HTTPRequest) async -> HTTPResponse
@@ -354,6 +423,7 @@ private final class ConnectionHandler: @unchecked Sendable {
     var path = ""
     var headers: [String: String] = [:]
     private var isFinished = false
+    private var stopped = false
 
     init(
         id: UUID,
@@ -384,22 +454,51 @@ private final class ConnectionHandler: @unchecked Sendable {
     private func readNext() {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] content, _, isComplete, error in
             guard let self = self else { return }
+            if self.stopped || self.isFinished { return }
             if let data = content, !data.isEmpty {
                 self.receivedData.append(data)
                 self.processData()
             }
+            if self.stopped || self.isFinished { return }
             if error != nil {
                 self.finish()
             } else if isComplete {
-                if !self.parsedHeaders {
-                    self.finish()
-                }
-            } else {
-                if !self.isComplete() {
-                    self.readNext()
-                }
+                // The peer closed its sending side. A full request is already
+                // being answered, so keep the connection for the response;
+                // only a truncated request is dropped here.
+                if !self.isComplete() { self.finish() }
+            } else if !self.isComplete() {
+                self.readNext()
             }
         }
+    }
+
+    private func corsHeaders(for origin: String?) -> [String: String] {
+        let allowOrigin = (origin?.isEmpty == false) ? origin! : "*"
+        return [
+            "Access-Control-Allow-Origin": allowOrigin,
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-WA-Token, X-Language",
+        ]
+    }
+
+    private func reject(status: Int, statusText: String, error: String, headers: [String: String] = [:]) {
+        guard !stopped, !isFinished else { return }
+        stopped = true
+        receivedData.removeAll(keepingCapacity: false)
+        let body = (try? JSONSerialization.data(withJSONObject: ["ok": false, "error": error], options: [.sortedKeys]))
+            ?? Data("{\"ok\":false,\"error\":\"request rejected\"}".utf8)
+        var headers = headers
+        headers["Content-Type"] = "application/json; charset=utf-8"
+        let response = HTTPResponse(
+            statusCode: status,
+            statusText: statusText,
+            headers: headers,
+            body: body
+        )
+        connection.send(content: response.serialize(), completion: .contentProcessed { [weak self] _ in
+            self?.finish()
+        })
     }
 
     private func isComplete() -> Bool {
@@ -408,10 +507,14 @@ private final class ConnectionHandler: @unchecked Sendable {
     }
 
     private func processData() {
+        if stopped || isFinished { return }
         if !parsedHeaders {
-            // Search for \r\n\r\n delimiter
             let delimiter = Data([13, 10, 13, 10])
             if let range = receivedData.range(of: delimiter) {
+                if range.lowerBound > Self.maxHeaderBytes {
+                    reject(status: 431, statusText: "Request Header Fields Too Large", error: "Los encabezados superan los 64 KB.")
+                    return
+                }
                 let headerData = receivedData.subdata(in: 0..<range.lowerBound)
                 headerEndOffset = range.upperBound
                 parsedHeaders = true
@@ -435,10 +538,22 @@ private final class ConnectionHandler: @unchecked Sendable {
                 }
 
                 if let clStr = headers["content-length"], let cl = Int(clStr) {
-                    expectedBodyLength = cl
+                    if cl > Self.maxBodyBytes {
+                        reject(
+                            status: 413,
+                            statusText: "Payload Too Large",
+                            error: "El cuerpo supera los 64 MB.",
+                            headers: corsHeaders(for: self.headers["origin"])
+                        )
+                        return
+                    }
+                    expectedBodyLength = max(0, cl)
                 } else {
                     expectedBodyLength = 0
                 }
+            } else if receivedData.count > Self.maxHeaderBytes {
+                reject(status: 431, statusText: "Request Header Fields Too Large", error: "Los encabezados superan los 64 KB.")
+                return
             }
         }
 

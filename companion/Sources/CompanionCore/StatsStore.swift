@@ -276,7 +276,7 @@ private struct StatsFile: Codable {
 }
 
 public final class StatsStore: @unchecked Sendable {
-    public static let recentLimit = 50
+    public static let recentLimit = 500
     public static let dayLimit = 400
     public static let knownSites: Set<String> = Set(CompanionSettings.siteCatalog)
     public static let errorCodes: Set<String> = [

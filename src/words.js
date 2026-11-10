@@ -1,4 +1,4 @@
-/* Word timings for karaoke. Classic script, before content.js. */
+/* Word timings for karaoke. Classic script, before content-core.js. */
 (function (g) {
   function normalizeWords(list) {
     if (!list || !list.length) return [];

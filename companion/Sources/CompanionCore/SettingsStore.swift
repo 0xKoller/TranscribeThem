@@ -165,6 +165,12 @@ public struct CompanionSettings: Codable, Equatable, Sendable {
 
 public enum AppSupport {
     public static func directory() -> URL {
+        // WA_COMPANION_DATA_DIR keeps a development build away from the real settings and history.
+        if let custom = ProcessInfo.processInfo.environment["WA_COMPANION_DATA_DIR"], !custom.isEmpty {
+            let dir = URL(fileURLWithPath: custom, isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
         let dir = base.appendingPathComponent("WA Local Transcribe", isDirectory: true)

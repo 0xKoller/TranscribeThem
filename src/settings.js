@@ -2,7 +2,6 @@
   g.WA_DEFAULTS = {
     languageMode: "es",
     modelId: "onnx-community/whisper-small",
-    polishEnabled: false,
     useCompanion: true,
     companionPort: 8765,
     debugMode: false,
@@ -10,6 +9,8 @@
     sites: { whatsapp: true, x: true },
     highlightWords: true,
     openAtLaunch: false,
+    autoTranscribe: false,
+    cacheTranscripts: true,
   };
 
   g.WA_SITES = [
@@ -33,7 +34,9 @@
   };
 
   g.waWhisperLanguage = function waWhisperLanguage(languageMode) {
-    return languageMode === "en" ? "en" : "es";
+    if (languageMode === "en") return "en";
+    // "auto" lets Whisper detect the language from the audio.
+    return languageMode === "auto" ? "auto" : "es";
   };
 
   g.waSiteId = function waSiteId(url) {
@@ -63,6 +66,12 @@
     return sites[id] !== false;
   };
 
+  // What the Mac app can do besides transcribing, as reported by GET /health.
+  g.waNormalizeFeatures = function waNormalizeFeatures(raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    return { summarize: source.summarize === true, translate: source.translate === true };
+  };
+
   g.waAfterCompanionMiss = function waAfterCompanionMiss(engineMode, useCompanion) {
     return g.waNormalizeEngineMode(engineMode, useCompanion) === "companion" ? "fail" : "browser";
   };
@@ -72,20 +81,26 @@
       id: "onnx-community/whisper-small",
       key: "small",
       label: "Small",
-      hint: "Rápido. ~250 MB. Alguna palabra puede salir mal.",
+      get hint() {
+        return g.waT("modelSmallHint");
+      },
       recommended: true,
     },
     {
       id: "Xenova/whisper-medium",
       key: "medium",
       label: "Medium",
-      hint: "Más preciso. ~1 GB. Más lento que Small (el encoder es más pesado).",
+      get hint() {
+        return g.waT("modelMediumHint");
+      },
     },
     {
       id: "onnx-community/whisper-large-v3-turbo",
       key: "turbo",
       label: "Turbo",
-      hint: "Lo más fino on-device. ~1.2 GB. En GPU integrada (Intel) puede quedarse sin memoria.",
+      get hint() {
+        return g.waT("modelTurboHint");
+      },
     },
   ];
   g.WA_ALLOWED_MODELS = g.WA_MODELS.map(function (m) {
@@ -96,15 +111,14 @@
   };
 
   g.WA_LANGUAGES = [
-    { id: "es", label: "Español" },
-    { id: "en", label: "English" },
+    { id: "es", get label() { return g.waT("langEs"); } },
+    { id: "en", get label() { return g.waT("langEn"); } },
   ];
 
   g.waGetSettings = async function waGetSettings() {
     const stored = await chrome.storage.local.get([
       "languageMode",
       "modelId",
-      "polishEnabled",
       "useCompanion",
       "companionPort",
       "companionActive",
@@ -113,6 +127,9 @@
       "sites",
       "highlightWords",
       "openAtLaunch",
+      "autoTranscribe",
+      "cacheTranscripts",
+      "companionFeatures",
       "companionSettingsAt",
       "lastError",
       "modelCached",
@@ -134,12 +151,15 @@
     return {
       languageMode: g.waNormalizeLanguage(stored.languageMode),
       modelId,
-      polishEnabled: stored.polishEnabled === true,
       useCompanion: engineMode !== "browser",
       engineMode,
       sites: g.waNormalizeSites(stored.sites),
       highlightWords: stored.highlightWords !== false,
       openAtLaunch: stored.openAtLaunch === true,
+      // Extension-only preferences: never synced with the Mac app.
+      autoTranscribe: stored.autoTranscribe === true,
+      cacheTranscripts: stored.cacheTranscripts !== false,
+      companionFeatures: g.waNormalizeFeatures(stored.companionFeatures),
       companionPort: typeof stored.companionPort === "number" ? stored.companionPort : 8765,
       debugMode: stored.debugMode === true,
       companionSettingsAt: typeof stored.companionSettingsAt === "number" ? stored.companionSettingsAt : 0,

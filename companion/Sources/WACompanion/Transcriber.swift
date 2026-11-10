@@ -146,13 +146,13 @@ public actor Transcriber {
         var targetURL = tempURL
         var convertedURL: URL? = nil
         var decoder = "AVFoundation-direct"
+        var samples: [Float]?
 
-        // Verify if AVFoundation can read it directly
+        // Decode once. resampleAudioFile is the same conversion AsrManager.transcribe(url:)
+        // would run before a second decode; the [Float] overload keeps token timings.
         do {
-            _ = try AVAudioFile(forReading: tempURL)
-            _ = try AudioConverter().resampleAudioFile(tempURL)
+            samples = try AudioConverter().resampleAudioFile(tempURL)
         } catch {
-            // Fallback to ffmpeg
             let wavURL = try convertViaFFmpeg(input: tempURL)
             targetURL = wavURL
             convertedURL = wavURL
@@ -178,7 +178,12 @@ public actor Transcriber {
 
         var state = TdtDecoderState.make()
         let t0 = ContinuousClock.now
-        let asrResult = try await asr.transcribe(targetURL, decoderState: &state, language: lang)
+        let asrResult: ASRResult
+        if let samples {
+            asrResult = try await asr.transcribe(samples, decoderState: &state, language: lang)
+        } else {
+            asrResult = try await asr.transcribe(targetURL, decoderState: &state, language: lang)
+        }
         let d = t0.duration(to: .now)
         let transcribeMs = Int(d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000)
 

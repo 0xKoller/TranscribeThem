@@ -60,6 +60,7 @@
 
 .wa-t-aside.is-on,
 .wa-t-aside:has(.wa-t-btn[data-busy="1"]),
+.wa-t-aside:has(.wa-t-act[data-busy="1"]),
 .wa-t-aside:has(.wa-t-status:not([hidden])) {
   opacity: 1;
   pointer-events: auto;
@@ -118,6 +119,7 @@
 
 .wa-t-emoji-host.is-on,
 .wa-t-emoji-host:has(.wa-t-btn[data-busy="1"]),
+.wa-t-emoji-host:has(.wa-t-act[data-busy="1"]),
 .wa-t-emoji-host:has(.wa-t-status:not([hidden])) {
   opacity: 1;
   pointer-events: auto;
@@ -133,6 +135,7 @@
 
 .wa-t-emoji-host .wa-t-btn,
 .wa-t-emoji-host .wa-t-save,
+.wa-t-emoji-host .wa-t-act,
 .wa-t-emoji-host .wa-t-copy {
   width: 32px;
   height: 32px;
@@ -143,6 +146,7 @@
 
 .wa-t-emoji-host .wa-t-btn:hover:not(:disabled),
 .wa-t-emoji-host .wa-t-save:hover:not(:disabled),
+.wa-t-emoji-host .wa-t-act:hover:not(:disabled),
 .wa-t-emoji-host .wa-t-copy:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
 }
@@ -202,6 +206,7 @@
 }
 
 .wa-t-x-tools .wa-t-btn,
+.wa-t-x-tools .wa-t-act,
 .wa-t-x-tools .wa-t-copy {
   background: transparent;
   color: #e7e9ea;
@@ -211,6 +216,7 @@
 }
 
 .wa-t-x-tools .wa-t-btn:hover:not(:disabled),
+.wa-t-x-tools .wa-t-act:hover:not(:disabled),
 .wa-t-x-tools .wa-t-copy:hover {
   background: transparent;
   border: 0;
@@ -241,6 +247,7 @@
 .wa-t-actions[hidden],
 .wa-t-copy[hidden],
 .wa-t-save[hidden],
+.wa-t-act[hidden],
 .wa-t-text[hidden],
 .wa-t-status[hidden],
 .wa-t-badge[hidden],
@@ -345,7 +352,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wa-t-btn[data-busy="1"] .wa-t-bar {
+  .wa-t-btn[data-busy="1"] .wa-t-bar,
+  .wa-t-act[data-busy="1"] svg {
     animation: none;
   }
 
@@ -356,6 +364,7 @@
 }
 
 .wa-t-copy,
+.wa-t-act,
 .wa-t-save {
   appearance: none;
   display: inline-flex;
@@ -374,6 +383,7 @@
 }
 
 .wa-t-copy svg,
+.wa-t-act svg,
 .wa-t-save svg {
   display: block;
 }
@@ -410,7 +420,23 @@
   cursor: default;
 }
 
+/* Resumir and Traducir while the Mac app works on the text. */
+.wa-t-act[data-busy="1"] {
+  opacity: 1;
+  cursor: progress;
+}
+
+.wa-t-act[data-busy="1"] svg {
+  animation: wa-t-wait 1s ease-in-out infinite;
+}
+
+@keyframes wa-t-wait {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
 .wa-t-copy:hover,
+.wa-t-act:hover:not(:disabled),
 .wa-t-save:hover:not(:disabled) {
   opacity: 1;
   background: rgba(255, 255, 255, 0.1);
@@ -603,4 +629,80 @@ html.wa-t-no-highlight .wa-t-word.is-upcoming {
 .wa-t-badge-parakeet {
   color: #25d366;
   font-weight: 500;
+}
+
+/* Summary and translation, under the transcript. The accent bar and the small
+   caps label set them apart from the transcript on every theme. */
+.wa-t-extras {
+  display: block;
+}
+
+.wa-t-extra {
+  margin: 8px 0 2px;
+  padding: 4px 0 2px 10px;
+  border-left: 2px solid rgba(165, 167, 242, 0.9);
+}
+
+.wa-t-extra[data-state="error"] {
+  border-left-color: #f15c4c;
+}
+
+.wa-t-extra-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 22px;
+}
+
+.wa-t-extra-label {
+  flex: 1 1 auto;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.wa-t-extra-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.wa-t-extra[data-state="error"] .wa-t-extra-body {
+  color: #f15c4c;
+}
+
+.wa-t-mini {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+  flex: 0 0 auto;
+}
+
+.wa-t-mini:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.wa-t-mini svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wa-t-act[data-busy="1"] svg {
+    animation: none;
+  }
 }

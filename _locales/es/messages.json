@@ -1,0 +1,540 @@
+{
+  "extName": {
+    "message": "TranscribeThem"
+  },
+  "extDescription": {
+    "message": "Transcribe notas de voz de WhatsApp Web y de los mensajes de X, 100% en el dispositivo. Sin API keys."
+  },
+  "extActionTitle": {
+    "message": "TranscribeThem"
+  },
+  "errNoWebgpu": {
+    "message": "Este Chrome no tiene WebGPU. Actualizá Chrome (113+)."
+  },
+  "errWebgpuFallback": {
+    "message": "WebGPU no disponible, usando CPU (más lento)."
+  },
+  "errDownload": {
+    "message": "No pude bajar el modelo. Revisá internet o volvé a Small."
+  },
+  "errNoAudio": {
+    "message": "No pude bajar este audio. Reintentá."
+  },
+  "errMedia403": {
+    "message": "WhatsApp no dejó bajar el audio (bloqueo o 403). Probá en Chrome o desactivá el content blocker de Dia."
+  },
+  "errReload": {
+    "message": "Recargá la pestaña de WhatsApp Web."
+  },
+  "errDecode": {
+    "message": "No pude decodificar el audio (Opus)."
+  },
+  "errOom": {
+    "message": "Memoria insuficiente. Probá Small en el popup."
+  },
+  "errOffscreen": {
+    "message": "No pude iniciar el motor local. Recargá la extensión."
+  },
+  "errGeneric": {
+    "message": "Falló la transcripción. Tocá Reintentar."
+  },
+  "errReloadX": {
+    "message": "Recargá la pestaña de Mensajes en X."
+  },
+  "errMedia403X": {
+    "message": "X no dejó bajar el audio (bloqueo o 403)."
+  },
+  "transcribe": {
+    "message": "Transcribir"
+  },
+  "inQueue": {
+    "message": "En cola…"
+  },
+  "readingAudio": {
+    "message": "Leyendo audio…"
+  },
+  "transcribing": {
+    "message": "Transcribiendo…"
+  },
+  "retry": {
+    "message": "Reintentar"
+  },
+  "loadingModel": {
+    "message": "Cargando modelo…"
+  },
+  "badgeParakeet": {
+    "message": "⚡ Parakeet local"
+  },
+  "badgeWhisper": {
+    "message": "Whisper (navegador)"
+  },
+  "copy": {
+    "message": "Copiar"
+  },
+  "copied": {
+    "message": "Copiado"
+  },
+  "copyFailed": {
+    "message": "No se pudo copiar"
+  },
+  "saveAudio": {
+    "message": "Guardar audio"
+  },
+  "extracting": {
+    "message": "Extrayendo…"
+  },
+  "saved": {
+    "message": "Guardado"
+  },
+  "saveFailed": {
+    "message": "No se pudo guardar"
+  },
+  "extReloadedX": {
+    "message": "La extensión se recargó. Recargá la pestaña de Mensajes en X."
+  },
+  "extReloadedWa": {
+    "message": "La extensión se recargó. Recargá la pestaña de WhatsApp Web."
+  },
+  "extractFailX": {
+    "message": "No se pudo extraer automáticamente. Dale Play a la nota en X y volvé a tocar Guardar audio."
+  },
+  "extractFailWa": {
+    "message": "No se pudo extraer automáticamente. Dale Play a la nota en WhatsApp y volvé a tocar Guardar audio."
+  },
+  "summarize": {
+    "message": "Resumir"
+  },
+  "summarizing": {
+    "message": "Resumiendo…"
+  },
+  "summary": {
+    "message": "Resumen"
+  },
+  "summarizeFailed": {
+    "message": "No se pudo resumir."
+  },
+  "translate": {
+    "message": "Traducir"
+  },
+  "translating": {
+    "message": "Traduciendo…"
+  },
+  "translation": {
+    "message": "Traducción"
+  },
+  "translateFailed": {
+    "message": "No se pudo traducir."
+  },
+  "hide": {
+    "message": "Ocultar"
+  },
+  "textUnavailable": {
+    "message": "Esta Mac no puede resumir ni traducir en el dispositivo."
+  },
+  "textBadRequest": {
+    "message": "El texto está vacío o es demasiado largo."
+  },
+  "textFailed": {
+    "message": "No se pudo procesar el texto. Reintentá."
+  },
+  "textOffline": {
+    "message": "La app no respondió. Abrila y reintentá."
+  },
+  "parakeetRunning": {
+    "message": "Transcribiendo con Parakeet (app local)…"
+  },
+  "appLoadingModel": {
+    "message": "La app está cargando el modelo…"
+  },
+  "modelStillLoading": {
+    "message": "El modelo todavía se está cargando. Reintentá en un momento."
+  },
+  "appNoResponse": {
+    "message": "La app no respondió. Reintentá cuando esté lista."
+  },
+  "loadingWhisper": {
+    "message": "Cargando Whisper (navegador)…"
+  },
+  "appMissingWhisper": {
+    "message": "App no detectada. Cargando Whisper (navegador)…"
+  },
+  "webgpuCpuRetry": {
+    "message": "WebGPU falló, reintento en CPU…"
+  },
+  "yes": {
+    "message": "sí"
+  },
+  "no": {
+    "message": "no"
+  },
+  "recommended": {
+    "message": "recomendado"
+  },
+  "gpuWarn": {
+    "message": "Tu GPU parece integrada (Intel u similar). Medium y Turbo pueden quedarse sin memoria. Small es más seguro."
+  },
+  "clearedTranscripts": {
+    "message": "Transcripciones borradas."
+  },
+  "clearTranscriptsFailed": {
+    "message": "No se pudieron borrar."
+  },
+  "appConnected": {
+    "message": "App local: Conectada (Parakeet v3)"
+  },
+  "appLoadingStatus": {
+    "message": "App local: Cargando modelo…"
+  },
+  "parakeetFast": {
+    "message": "⚡ Transcribiendo con Parakeet v3 a ~100 ms (CoreML)."
+  },
+  "parakeetPreparing": {
+    "message": "El modelo Parakeet v3 se está preparando en la app."
+  },
+  "appNotDetected": {
+    "message": "App local: No detectada"
+  },
+  "whisperFallbackHint": {
+    "message": "Usando Whisper en el navegador. Abrí la app TranscribeThem para máxima velocidad."
+  },
+  "modelSmallHint": {
+    "message": "Rápido. ~250 MB. Alguna palabra puede salir mal."
+  },
+  "modelMediumHint": {
+    "message": "Más preciso. ~1 GB. Más lento que Small (el encoder es más pesado)."
+  },
+  "modelTurboHint": {
+    "message": "Lo más fino on-device. ~1.2 GB. En GPU integrada (Intel) puede quedarse sin memoria."
+  },
+  "langEs": {
+    "message": "Español"
+  },
+  "langEn": {
+    "message": "English"
+  },
+  "langAuto": {
+    "message": "Automático"
+  },
+  "popupTag": {
+    "message": "WhatsApp y mensajes de X. 100% en el dispositivo."
+  },
+  "companionHintDefault": {
+    "message": "Transcribe con Parakeet si la app macOS está abierta."
+  },
+  "labelLanguage": {
+    "message": "Idioma"
+  },
+  "openApp": {
+    "message": "Abrir app"
+  },
+  "openSettings": {
+    "message": "Ajustes"
+  },
+  "optTitle": {
+    "message": "Ajustes — TranscribeThem"
+  },
+  "optTag": {
+    "message": "Ajustes. 100% en el dispositivo."
+  },
+  "optWhere": {
+    "message": "Dónde aparece"
+  },
+  "siteWhatsapp": {
+    "message": "WhatsApp Web"
+  },
+  "siteX": {
+    "message": "X"
+  },
+  "siteHint": {
+    "message": "Si lo apagás, el botón desaparece en ese sitio."
+  },
+  "optHow": {
+    "message": "Cómo transcribe"
+  },
+  "optAutoHint": {
+    "message": "El idioma se detecta en cada nota."
+  },
+  "sectionEngine": {
+    "message": "Motor"
+  },
+  "engineAuto": {
+    "message": "Automático"
+  },
+  "engineAutoHint": {
+    "message": "Usa esta app. Si no está, transcribe en el navegador."
+  },
+  "engineCompanion": {
+    "message": "Solo esta app"
+  },
+  "engineCompanionHint": {
+    "message": "Si la app no responde, la nota falla y no usa el navegador."
+  },
+  "engineBrowser": {
+    "message": "Solo el navegador"
+  },
+  "engineBrowserHint": {
+    "message": "Siempre transcribe con Whisper en Chrome."
+  },
+  "sectionBrowserModel": {
+    "message": "Modelo del navegador"
+  },
+  "optOnNote": {
+    "message": "En la nota"
+  },
+  "showTiming": {
+    "message": "Mostrar el tiempo de cada nota"
+  },
+  "highlightWords": {
+    "message": "Resaltar la palabra mientras suena"
+  },
+  "optAutoTranscribe": {
+    "message": "Transcribir sola cada nota de voz que aparece"
+  },
+  "optAutoTranscribeHint": {
+    "message": "Solo las notas que se ven en el chat abierto, y solo cuando transcribe la app de Mac."
+  },
+  "savedHeading": {
+    "message": "Transcripciones guardadas"
+  },
+  "cacheTranscripts": {
+    "message": "Recordar las transcripciones en este navegador"
+  },
+  "cacheHint": {
+    "message": "Así la nota sigue transcripta al recargar la pestaña. Si lo apagás, se borran las guardadas."
+  },
+  "clearTranscripts": {
+    "message": "Borrar transcripciones guardadas"
+  },
+  "advanced": {
+    "message": "Avanzado"
+  },
+  "labelWebgpu": {
+    "message": "WebGPU"
+  },
+  "labelCache": {
+    "message": "Cache"
+  },
+  "labelDevice": {
+    "message": "Motor"
+  },
+  "modelInMemory": {
+    "message": "Modelo en memoria:"
+  },
+  "optVersion": {
+    "message": "Versión:"
+  },
+  "optLocalPort": {
+    "message": "Puerto local: 8765"
+  },
+  "openTheApp": {
+    "message": "Abrir la app"
+  },
+  "privacy": {
+    "message": "Privacidad"
+  },
+  "privacyBody": {
+    "message": "El audio de la nota de voz se decodifica y se transcribe en esta máquina. No se envía a ningún servidor de transcripción. No hay API keys."
+  },
+  "privacyDownload": {
+    "message": "La primera vez se bajan los pesos del modelo desde Hugging Face (gratis) y quedan en el cache del navegador. Después funciona offline."
+  },
+  "noButton": {
+    "message": "Si no aparece el botón"
+  },
+  "noButtonBody": {
+    "message": "Para WhatsApp Web, revisá que esté prendido arriba. Recargá la extensión y después la pestaña de WhatsApp Web o de Mensajes en X (x.com/i/chat o x.com/messages). El hook de audio corre al inicio de la página."
+  },
+  "xDebugWavesNoHost": {
+    "message": "veo las ondas, pero el clasificador no las toma"
+  },
+  "xDebugNoId": {
+    "message": "hay notas sin id; no se puede armar el botón"
+  },
+  "xDebugNoButton": {
+    "message": "hay notas y el botón no se creó"
+  },
+  "xDebugHidden": {
+    "message": "el botón está creado y oculto"
+  },
+  "xDebugShadow": {
+    "message": "las ondas están dentro de un shadow DOM"
+  },
+  "xDebugNoChat": {
+    "message": "este marco no tiene el chat"
+  },
+  "xDebugNoWaves": {
+    "message": "hay mensajes y ninguna onda de audio"
+  },
+  "xDebugNoHook": {
+    "message": "veo el chat y el hook de audio no arrancó"
+  },
+  "xDebugCapped": {
+    "message": "no vi notas en este recorrido; la página es más grande"
+  },
+  "xDebugNone": {
+    "message": "en este documento no hay notas"
+  },
+  "xDebugCopied": {
+    "message": "copiado"
+  },
+  "badgeParakeetMs": {
+    "message": "⚡ Parakeet local ($MS$ ms)",
+    "placeholders": {
+      "ms": {
+        "content": "$1"
+      }
+    }
+  },
+  "saveFailedDetail": {
+    "message": "No se pudo guardar: $DETAIL$",
+    "placeholders": {
+      "detail": {
+        "content": "$1"
+      }
+    }
+  },
+  "whisperFailed": {
+    "message": "Falló Whisper: $DETAIL$",
+    "placeholders": {
+      "detail": {
+        "content": "$1"
+      }
+    }
+  },
+  "xDebugPosition": {
+    "message": "botón en $SAMPLE$; si no lo ves, es la posición",
+    "placeholders": {
+      "sample": {
+        "content": "$1"
+      }
+    }
+  },
+  "xDebugLine1": {
+    "message": "wa-t $VER$ · $FRAME$ · $PATH$ · filas $ROWS$ · ondas $WAVES$$SHADOW$ · notas $NOTES$ · botones $BUTTONS$ · hook $HOOK$",
+    "placeholders": {
+      "ver": {
+        "content": "$1"
+      },
+      "frame": {
+        "content": "$2"
+      },
+      "path": {
+        "content": "$3"
+      },
+      "rows": {
+        "content": "$4"
+      },
+      "waves": {
+        "content": "$5"
+      },
+      "shadow": {
+        "content": "$6"
+      },
+      "notes": {
+        "content": "$7"
+      },
+      "buttons": {
+        "content": "$8"
+      },
+      "hook": {
+        "content": "$9"
+      }
+    }
+  },
+  "xDebugShadowPart": {
+    "message": " · ondas-shadow $COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "xDebugLine2": {
+    "message": "$VERDICT$ · sombras $SHADOWS$ · iframes $FRAMES$$SAMPLE$ · clic para copiar",
+    "placeholders": {
+      "verdict": {
+        "content": "$1"
+      },
+      "shadows": {
+        "content": "$2"
+      },
+      "frames": {
+        "content": "$3"
+      },
+      "sample": {
+        "content": "$4"
+      }
+    }
+  },
+  "xDumpVersion": {
+    "message": "version "
+  },
+  "xDumpHref": {
+    "message": "href "
+  },
+  "xDumpFrame": {
+    "message": "frame "
+  },
+  "xDumpRows": {
+    "message": "filas "
+  },
+  "xDumpWaves": {
+    "message": "ondas "
+  },
+  "xDumpWavesShadow": {
+    "message": "ondasShadow "
+  },
+  "xDumpRowsShadow": {
+    "message": "filasShadow "
+  },
+  "xDumpNotes": {
+    "message": "notas "
+  },
+  "xDumpNoId": {
+    "message": "sinId "
+  },
+  "xDumpButtons": {
+    "message": "botones "
+  },
+  "xDumpVisible": {
+    "message": "visibles "
+  },
+  "xDumpPos": {
+    "message": "pos "
+  },
+  "xDumpHook": {
+    "message": "hook "
+  },
+  "xDumpYes": {
+    "message": "si"
+  },
+  "xDumpNo": {
+    "message": "no"
+  },
+  "xDumpShadowsOpen": {
+    "message": "sombrasAbiertas "
+  },
+  "xDumpShadowsClosed": {
+    "message": "sombrasCerradas "
+  },
+  "xDumpIframes": {
+    "message": "iframes "
+  },
+  "xDumpError": {
+    "message": "error "
+  },
+  "xDumpVerdict": {
+    "message": "veredicto "
+  },
+  "loadingModelPct": {
+    "message": "Cargando modelo… $PCT$%",
+    "placeholders": {
+      "pct": {
+        "content": "$1"
+      }
+    }
+  },
+  "companionChecking": {
+    "message": "Verificando app local…"
+  }
+}
