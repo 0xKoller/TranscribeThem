@@ -536,5 +536,48 @@
   },
   "companionChecking": {
     "message": "Verificando app local…"
+  },
+  "cancel": {
+    "message": "Cancelar"
+  },
+  "cancelHint": {
+    "message": "(tocá para cancelar)"
+  },
+  "transcriptLabel": {
+    "message": "Transcripción"
+  },
+  "cmdTranscribeLatest": {
+    "message": "Transcribir la última nota de voz a la vista"
+  },
+  "transcribeVisible": {
+    "message": "Transcribir las notas a la vista"
+  },
+  "transcribeVisibleCount": {
+    "message": "Transcribiendo $COUNT$ nota(s)…",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "transcribeVisibleNone": {
+    "message": "No hay notas sin transcribir a la vista."
+  },
+  "shortcutHint": {
+    "message": "Atajo para la última nota: $KEY$",
+    "placeholders": {
+      "key": {
+        "content": "$1"
+      }
+    }
+  },
+  "shortcutUnset": {
+    "message": "sin asignar"
+  },
+  "shortcutTitle": {
+    "message": "Atajo de teclado"
+  },
+  "shortcutBody": {
+    "message": "Transcribe la última nota de voz a la vista. Cambialo en chrome://extensions/shortcuts."
   }
 }

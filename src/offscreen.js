@@ -1,6 +1,6 @@
 import { pipeline, env, LogLevel } from "@huggingface/transformers";
 import { detectWhisperLanguage } from "./whisper-lang.js";
-import { downloadPct } from "./download-progress.js";
+import { downloadPct } from "./download-progress.mjs";
 
 const LOG = "[wa-transcribe]";
 const TARGET_SR = 16000;

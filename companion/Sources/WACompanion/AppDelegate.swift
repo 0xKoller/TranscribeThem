@@ -21,6 +21,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelega
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         model = AppModel(service: service)
+        if model?.checkUpdatesAtLaunch == true { model?.checkForUpdates() }
         service.onChange = { [weak self] in
             Task { @MainActor in
                 self?.refreshUI()

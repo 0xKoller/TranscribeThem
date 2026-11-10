@@ -156,3 +156,10 @@
 "mediana %@" = "mediana %@";
 "¿Borrar todos los textos guardados?" = "¿Borrar todos los textos guardados?";
 "Últimos 7 días" = "Últimos 7 días";
+"Actualizaciones" = "Actualizaciones";
+"Buscar actualizaciones al abrir la app" = "Buscar actualizaciones al abrir la app";
+"Buscar ahora" = "Buscar ahora";
+"Consulta la última versión publicada en GitHub. No envía datos tuyos." = "Consulta la última versión publicada en GitHub. No envía datos tuyos.";
+"Estás al día (v%@)." = "Estás al día (v%@).";
+"Descargar la versión %@" = "Descargar la versión %@";
+"No se pudo consultar. Revisá la conexión." = "No se pudo consultar. Revisá la conexión.";

@@ -1,4 +1,4 @@
-/* global waInitSettingsUi, waApplyI18n */
+/* global waInitSettingsUi, waApplyI18n, waSiteId, waT, WA_MSG */
 
 waApplyI18n(document);
 
@@ -20,3 +20,41 @@ waInitSettingsUi({
   companionStatusEl: document.getElementById("companion-status"),
   companionHintEl: document.getElementById("companion-hint"),
 });
+
+// "Transcribe the notes on screen", only on WhatsApp Web and X tabs.
+(async function initVisible() {
+  const box = document.getElementById("visible-box");
+  const button = document.getElementById("transcribe-visible");
+  const status = document.getElementById("visible-status");
+  const shortcut = document.getElementById("shortcut-hint");
+  let tab;
+  try {
+    [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  } catch (_) {
+    return;
+  }
+  // Host permissions expose the URL only for the sites we run on.
+  if (!tab || tab.id == null || !waSiteId(tab.url || "")) return;
+  box.hidden = false;
+
+  try {
+    const commands = await chrome.commands.getAll();
+    const command = commands.find((c) => c.name === "transcribe-latest");
+    shortcut.textContent = waT("shortcutHint", (command && command.shortcut) || waT("shortcutUnset"));
+    shortcut.hidden = false;
+  } catch (_) {
+    /* no shortcut info */
+  }
+
+  button.addEventListener("click", () => {
+    button.disabled = true;
+    status.textContent = "";
+    chrome.tabs.sendMessage(tab.id, { type: WA_MSG.TRANSCRIBE_VISIBLE, mode: "all" }, (resp) => {
+      void chrome.runtime.lastError;
+      button.disabled = false;
+      status.textContent = resp && resp.count
+        ? waT("transcribeVisibleCount", resp.count)
+        : waT("transcribeVisibleNone");
+    });
+  });
+})();

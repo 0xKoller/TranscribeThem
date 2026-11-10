@@ -346,3 +346,42 @@ input {
 @media (prefers-reduced-motion: reduce) {
   .progress-bar { transition: none; }
 }
+
+.visible-box {
+  margin: 0 0 14px;
+}
+
+.primary-btn {
+  appearance: none;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 20%, var(--card));
+}
+
+.primary-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.visible-status {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.visible-status:empty {
+  display: none;
+}
+
+.visible-status.muted {
+  color: var(--muted);
+}

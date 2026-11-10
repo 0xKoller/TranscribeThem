@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>WhatsApp (e2e fixture)</title>
+    <style>
+      body { font: 14px sans-serif; background: #111b21; color: #e9edef; margin: 0; }
+      #main { padding: 16px; max-width: 520px; }
+      [data-testid="msg-container"] { display: flex; margin: 8px 0; }
+      .bubble { background: #202c33; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 4px; min-width: 260px; }
+      .row { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+      button.play { background: none; border: 0; color: inherit; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <!-- A synthetic WhatsApp Web chat with two voice notes. No real messages. -->
+    <div id="main">
+      <div data-testid="conversation-panel-body">
+        <div data-id="false_111@c.us_E2E1" class="message-in">
+          <div data-testid="msg-container">
+            <div class="bubble">
+              <div class="row">
+                <button class="play" aria-label="Reproducir mensaje de voz"><span data-icon="audio-play"></span>▶</button>
+                <div role="slider" aria-valuenow="0" style="width: 120px; height: 20px; background: #2a3942"></div>
+                <span>0:04</span>
+                <span>11:35</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div data-id="false_111@c.us_E2E2" class="message-in">
+          <div data-testid="msg-container">
+            <div class="bubble">
+              <div class="row">
+                <button class="play" aria-label="Reproducir mensaje de voz"><span data-icon="audio-play"></span>▶</button>
+                <div role="slider" aria-valuenow="0" style="width: 120px; height: 20px; background: #2a3942"></div>
+                <span>0:06</span>
+                <span>11:36</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer>Escribí un mensaje</footer>
+    </div>
+    <script>
+      // Like WhatsApp: play decrypts the note into a blob and plays it.
+      document.addEventListener("click", (ev) => {
+        const play = ev.target.closest && ev.target.closest("button.play");
+        if (!play) return;
+        const id = play.closest("[data-id]").getAttribute("data-id");
+        // About what a few seconds of Opus weigh; the hook checks size against duration.
+        const bytes = new Uint8Array(8192);
+        bytes.set(new TextEncoder().encode("OggS-fake-audio-" + id));
+        const url = URL.createObjectURL(new Blob([bytes], { type: "audio/ogg; codecs=opus" }));
+        const audio = new Audio();
+        audio.src = url;
+        audio.play().catch(() => {});
+      });
+    </script>
+  </body>
+</html>

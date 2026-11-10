@@ -23,6 +23,39 @@ final class AppModel {
     var modelFailed = false
     var historyError: String?
 
+    enum UpdateState: Equatable {
+        case idle, checking, upToDate(String), available(UpdateCheck.Release), failed
+    }
+    var update: UpdateState = .idle
+    var checkUpdatesAtLaunch = UserDefaults.standard.bool(forKey: "checkUpdatesAtLaunch") {
+        didSet { UserDefaults.standard.set(checkUpdatesAtLaunch, forKey: "checkUpdatesAtLaunch") }
+    }
+
+    /// One request to the public GitHub releases API. Off unless the user asks
+    /// for it or turns on the launch check.
+    func checkForUpdates() {
+        guard update != .checking else { return }
+        update = .checking
+        let current = BundleVersion.current()
+        var request = URLRequest(url: UpdateCheck.latestReleaseURL, timeoutInterval: 15)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("TranscribeThem", forHTTPHeaderField: "User-Agent")
+        Task {
+            let next: UpdateState
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                if (response as? HTTPURLResponse)?.statusCode == 200, let release = UpdateCheck.parseLatest(data) {
+                    next = UpdateCheck.isNewer(release.version, than: current) ? .available(release) : .upToDate(current)
+                } else {
+                    next = .failed
+                }
+            } catch {
+                next = .failed
+            }
+            await MainActor.run { self.update = next }
+        }
+    }
+
     var nativeSelection = NativeModel(rawValue: UserDefaults.standard.string(forKey: "nativeModel") ?? "v3") ?? .v3
     var nativeLocalPath = UserDefaults.standard.string(forKey: "nativeModelPath") ?? ""
     var activeNativeName = ""

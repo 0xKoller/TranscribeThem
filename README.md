@@ -6,10 +6,10 @@ Transcribe WhatsApp Web and X DM voice notes on your device. This is a Chrome ex
 
 ## Download and install
 
-Download the files from the [v0.4.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.4.0):
+Download the files from the [v0.5.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.5.0):
 
-- `TranscribeThem-0.4.0.dmg`: the recommended Mac app for Apple Silicon and macOS 14 or later. Open the DMG, drag TranscribeThem to Applications, and open it. With the app running, the extension uses Parakeet. The app has an ad hoc signature. It is not signed with Developer ID and is not notarized. If macOS blocks it, go to System Settings, Privacy & Security, and click Open Anyway.
-- `TranscribeThem-extension-0.4.0.zip`: the Chrome extension, required on Chrome 113 or later. Unzip it, open `chrome://extensions`, turn on Developer mode, click Load unpacked, and choose the folder that contains `manifest.json`.
+- `TranscribeThem-0.5.0.dmg`: the recommended Mac app for Apple Silicon and macOS 14 or later. Open the DMG, drag TranscribeThem to Applications, and open it. With the app running, the extension uses Parakeet. The app has an ad hoc signature. It is not signed with Developer ID and is not notarized. If macOS blocks it, go to System Settings, Privacy & Security, and click Open Anyway.
+- `TranscribeThem-extension-0.5.0.zip`: the Chrome extension, required on Chrome 113 or later. Unzip it, open `chrome://extensions`, turn on Developer mode, click Load unpacked, and choose the folder that contains `manifest.json`.
 
 Open or reload [WhatsApp Web](https://web.whatsapp.com) after installing the extension and click Transcribe on a voice note. You do not need to play it first. No message is sent.
 
@@ -28,11 +28,15 @@ Options also has:
 - **Remember transcripts**, on by default. The extension keeps the last 300 transcripts per message in this browser, so a reload does not lose them. You can clear them there.
 - **Transcribe on its own**, off by default. Each voice note that comes into view in the open chat is transcribed without a click. It only runs with the Mac app as the engine.
 
+Click a note's button while it is queued or transcribing to cancel it. On a WhatsApp Web or X tab, the toolbar popup has **Transcribe the notes on screen**, and Alt+Shift+T transcribes the newest one (change it at `chrome://extensions/shortcuts`).
+
 With the Mac app on macOS 26 or later, a transcript gets Summarize and Translate actions. Both run on the Mac with Apple's on-device model. On older systems the actions do not appear.
 
 ## Privacy and network
 
-Audio is processed on your machine, in the browser or in the app through `127.0.0.1:8765`. Models download from Hugging Face. WASM assets may fall back to jsDelivr if needed. WhatsApp Web and X keep using their own network connections.
+Audio is processed on your machine, in the browser or in the app through `127.0.0.1:8765`. Models download from Hugging Face. The ONNX Runtime WASM files ship inside the extension, so no code is loaded from a CDN. WhatsApp Web and X keep using their own network connections.
+
+The extension has a fixed ID (`bnmnjapomgkgljobkcalefbbnfcfjlmd`, set by the `key` in `manifest.json`). The Mac app only accepts requests from that extension or from a page on the loopback host, so other extensions and websites cannot use it. The app can check GitHub for a newer release, only when you ask in its Settings. The full policy is in [docs/PRIVACY.md](docs/PRIVACY.md).
 
 There is no analytics and no backend of our own. The app stores settings and statistics on the Mac. It uses temporary audio files while transcribing and deletes them when done. The last transcript may stay in memory while the app is open. From the extension you can save audio and text if you ask it to.
 
@@ -48,7 +52,10 @@ cd TranscribeThem
 npm ci
 npm run build
 npm test
+npm run test:e2e   # first time: npx playwright install chromium
 ```
+
+`npm run test:e2e` loads the real extension in Playwright's Chromium against a synthetic WhatsApp chat and a fake Mac app.
 
 Then load this folder from `chrome://extensions`. The bundle and WASM files are generated at build time; they are not checked in.
 
@@ -66,11 +73,13 @@ To build the ZIP and DMG on macOS:
 npm run package:release
 ```
 
-The files land in `dist/`. Models download at runtime and are not included in the installers. More detail is in [CONTRIBUTING.md](CONTRIBUTING.md) and [the app documentation](companion/README.md).
+The files land in `dist/`. Models download at runtime and are not included in the installers. `npm run package:webstore` builds a Chrome Web Store ZIP; see [docs/CHROME_WEB_STORE.md](docs/CHROME_WEB_STORE.md).
+
+To run a development build of the app next to the installed one, set `WA_COMPANION_PORT` and `WA_COMPANION_DATA_DIR`. `WA_COMPANION_EXTENSION_IDS` (comma separated) lets other extension IDs talk to it. More detail is in [CONTRIBUTING.md](CONTRIBUTING.md) and [the app documentation](companion/README.md).
 
 ## Limitations
 
-This is version 0.4.0. Transcripts can contain errors. If WhatsApp or X change their interface, the extension may stop working. It is not on the Chrome Web Store yet. The Mac installer is Apple Silicon only.
+This is version 0.5.0. Transcripts can contain errors. If WhatsApp or X change their interface, the extension may stop working. It is not on the Chrome Web Store yet. The Mac installer is Apple Silicon only.
 
 ## License
 

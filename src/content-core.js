@@ -298,9 +298,10 @@ function setUi(wrap, { phase, message, text, engine, transcribeMs, words }) {
   btn.hidden = hasText;
   const labelEl = btn._waLabel || btn.querySelector(".wa-t-btn-label");
   if (labelEl) labelEl.textContent = label;
-  btn.setAttribute("aria-label", label);
-  btn.title = label;
-  btn.disabled = busy;
+  // While busy the same button cancels the job.
+  btn.setAttribute("aria-label", busy ? label + " " + waT("cancelHint") : label);
+  btn.title = busy ? waT("cancel") : label;
+  btn.disabled = false;
   if (busy) btn.dataset.busy = "1";
   else delete btn.dataset.busy;
 
@@ -432,10 +433,14 @@ function buildWrap() {
 
   const status = document.createElement("div");
   status.className = "wa-t-status";
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
   status.hidden = true;
 
   const out = document.createElement("div");
   out.className = "wa-t-text";
+  out.setAttribute("aria-live", "polite");
+  out.setAttribute("aria-label", waT("transcriptLabel"));
   out.hidden = true;
 
   const body = document.createElement("div");
@@ -490,7 +495,7 @@ function buildWrap() {
     ev.preventDefault();
     ev.stopPropagation();
     if (recentUiPointer()) return;
-    startTranscribe(wrap, wrap);
+    toggleTranscribe(wrap);
   });
   saveBtn.addEventListener("click", (ev) => {
     ev.preventDefault();
@@ -654,9 +659,11 @@ async function startTranscribe(container, wrap) {
     }
   } catch (err) {
     log("extract failed", err);
+    if (wrap.dataset.requestId !== requestId) return; // cancelled while extracting
     setUi(wrap, { phase: "error", message: shownError(err, err.code || "NO_AUDIO") });
     return;
   }
+  if (wrap.dataset.requestId !== requestId) return; // cancelled while extracting
   log("blob", {
     requestId,
     mime: extracted.mimeType || "unknown",
@@ -684,7 +691,64 @@ async function startTranscribe(container, wrap) {
 }
 
 function wrapForRequest(requestId) {
-  return document.querySelector(`.wa-t-wrap[data-request-id="${CSS.escape(requestId)}"]`);
+  const found = document.querySelector(`.wa-t-wrap[data-request-id="${CSS.escape(requestId)}"]`);
+  if (found) return found;
+  // X wraps can sit in a shadow root that querySelector does not enter.
+  return transcriptWraps().find((wrap) => wrap.dataset.requestId === requestId) || null;
+}
+
+function isBusy(wrap) {
+  const phase = wrap && wrap.dataset.phase;
+  return phase === "loading" || phase === "queued" || phase === "running";
+}
+
+function cancelTranscribe(wrap) {
+  const requestId = wrap.dataset.requestId;
+  delete wrap.dataset.requestId;
+  setUi(wrap, { phase: "idle" });
+  if (typeof releaseAuto === "function") releaseAuto(wrap);
+  if (!requestId) return;
+  try {
+    chrome.runtime.sendMessage({ type: WA_MSG.CANCEL, requestId }, () => {
+      void chrome.runtime.lastError;
+    });
+  } catch (_) {
+    /* extension reloaded; nothing left to cancel */
+  }
+}
+
+function toggleTranscribe(wrap) {
+  if (isBusy(wrap)) cancelTranscribe(wrap);
+  else startTranscribe(wrap, wrap);
+}
+
+function wrapRect(wrap) {
+  const el = wrap._waShell || wrap._waBubble || wrap._waFoot;
+  if (!el || !el.isConnected || !el.getBoundingClientRect) return null;
+  const rect = el.getBoundingClientRect();
+  const onScreen = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
+  return onScreen ? rect : null;
+}
+
+// Voice notes on screen without a transcript, top to bottom.
+function pendingWrapsOnScreen() {
+  const found = [];
+  for (const wrap of transcriptWraps()) {
+    const phase = wrap.dataset.phase || "idle";
+    if (phase !== "idle" && phase !== "error") continue;
+    const rect = wrapRect(wrap);
+    if (rect) found.push({ wrap, top: rect.top });
+  }
+  found.sort((a, b) => a.top - b.top);
+  return found.map((item) => item.wrap);
+}
+
+// One extraction at a time: the hook plays each note muted to capture it.
+async function transcribeMany(wraps) {
+  for (const wrap of wraps) {
+    if (!wrap.isConnected || isBusy(wrap)) continue;
+    await startTranscribe(wrap, wrap);
+  }
 }
 
 let uiPointerAt = 0;
@@ -743,7 +807,7 @@ function onUiPointerDown(ev) {
   if (btn && !btn.disabled && !btn.hidden) {
     ev.preventDefault();
     const wrap = btn._waWrap || btn.closest(".wa-t-wrap");
-    if (wrap) startTranscribe(wrap, wrap);
+    if (wrap) toggleTranscribe(wrap);
     return;
   }
   const copy = node.closest(".wa-t-copy");
@@ -828,8 +892,18 @@ function refreshDebug() {
   waGetSettings().then(applyPrefs).catch(() => applySiteGate({ sites: { whatsapp: true } }));
 }
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg || !msg.type) return;
+  if (msg.type === WA_MSG.TRANSCRIBE_VISIBLE) {
+    if (!isXSite() && !siteOn) return;
+    const wraps = pendingWrapsOnScreen();
+    // Frames without notes stay quiet so the frame that has them answers.
+    if (!wraps.length) return;
+    const targets = msg.mode === "latest" ? wraps.slice(-1) : wraps;
+    sendResponse({ ok: true, count: targets.length });
+    transcribeMany(targets);
+    return;
+  }
   const wrap = msg.requestId ? wrapForRequest(msg.requestId) : null;
   if (!wrap) return;
 

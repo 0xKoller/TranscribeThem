@@ -34,4 +34,16 @@ assert.deepEqual(order, ["start-a", "end-a", "start-b", "end-b", "start-c", "end
 assert.equal(maxParallel, 1);
 assert.equal(q.busy, false);
 assert.equal(q.pending, 0);
+// A queued job can be cancelled before it starts; the running one cannot.
+{
+  const ran = [];
+  const first = q.push({ id: "x" }, async () => { ran.push("x"); await new Promise((r) => setTimeout(r, 20)); return "x"; });
+  const second = q.push({ id: "y" }, async () => { ran.push("y"); return "y"; });
+  assert.equal(q.cancel((j) => j.id === "x"), false);
+  assert.equal(q.cancel((j) => j.id === "y"), true);
+  assert.equal(q.cancel((j) => j.id === "y"), false);
+  assert.equal(await second, null);
+  assert.equal(await first, "x");
+  assert.deepEqual(ran, ["x"]);
+}
 console.log("queue.test.mjs ok");

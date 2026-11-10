@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzGikemVdieyLnZ9JfKNfviQygon4YVysv/OrCVMyH/yvukqpJJtEY5+Mu6t6j1tipgUOo/qym2Nt+wGvler5QJbZJXTWW2ouur10s2qr7F+mFcL+O5cj9Nr+N/kMSmFggnMkjeEgHl8FBvH1zA3D3gVhH6pq1VXo3aBu224mbpHGkJjtoiPVeNKMRxuCzpE0mm1imnKnNc0dmeEsVncX4PDzwfovUj3aAlDBhuxhs3bhoCrKjxkbNHWmctJCz050iWpqX84En3CdnrLVHDhDkIUj7B4hrR0wOBX4Foj1MDiao7WzKeDKLHrRXdKy+SXahmbCd8Hm0ozHMjAIkV5f2QIDAQAB",
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "minimum_chrome_version": "113",
   "icons": {
     "16": "icons/icon16.png",
@@ -19,6 +20,12 @@
       "32": "icons/icon32.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
+    }
+  },
+  "commands": {
+    "transcribe-latest": {
+      "suggested_key": { "default": "Alt+Shift+T" },
+      "description": "__MSG_cmdTranscribeLatest__"
     }
   },
   "options_ui": {
@@ -38,8 +45,7 @@
     "https://*.huggingface.co/*",
     "https://hf.co/*",
     "https://*.hf.co/*",
-    "https://*.xethub.hf.co/*",
-    "https://cdn.jsdelivr.net/*"
+    "https://*.xethub.hf.co/*"
   ],
   "background": {
     "service_worker": "src/background.js"

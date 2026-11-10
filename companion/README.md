@@ -33,7 +33,11 @@ El servidor escucha solo en `127.0.0.1:8765` y rechaza pedidos de más de 64 MB.
 - `POST /v1/jobs`: estadísticas de transcripción; incluye el texto solo si el historial local está habilitado.
 - `POST /v1/open`: abre la ventana.
 - `POST /v1/text`: resumen o traducción de un texto en el dispositivo (`action`: `summarize` o `translate`, `text`, `targetLanguage`: `es` o `en`). Requiere macOS 26 o posterior; si no está disponible responde 501 con `code: unavailable`.
-- `POST /transcribe`: audio binario o JSON con `audioBase64`, `mimeType` y `language`; devuelve texto, duración, motor y tiempos de palabras.
+- `POST /transcribe`: audio binario (tipo en `Content-Type`, idioma en `X-Language`, sitio en `X-Site`) o JSON con `audioBase64`, `mimeType` y `language`; devuelve texto, duración, motor y tiempos de palabras. La extensión manda binario.
+
+El servidor solo escucha en `127.0.0.1`. Si el pedido trae `Origin`, tiene que ser la extensión TranscribeThem (`chrome-extension://bnmnjapomgkgljobkcalefbbnfcfjlmd`, más los IDs de `WA_COMPANION_EXTENSION_IDS`) o una página de `127.0.0.1`, `localhost` o `[::1]`, comparando el host exacto. Cualquier otro origen recibe 403.
+
+Ajustes → Actualizaciones consulta la última versión publicada en GitHub, solo al tocar Buscar ahora o con la búsqueda al abrir activada (apagada por defecto).
 
 Se conserva la ruta local `~/Library/Application Support/WA Local Transcribe/` para compatibilidad con instalaciones previas. No se persisten las transcripciones en las estadísticas; el último texto puede permanecer en memoria durante la ejecución. Los archivos temporales de audio se eliminan al finalizar la transcripción.
 

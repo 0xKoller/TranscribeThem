@@ -1,6 +1,8 @@
 /* Shared message types. Loaded as a classic script (content, SW, popup). */
 (function (g) {
   g.WA_MSG = {
+    CANCEL: "WA_CANCEL",
+    TRANSCRIBE_VISIBLE: "WA_TRANSCRIBE_VISIBLE",
     TRANSCRIBE: "WA_TRANSCRIBE",
     PROGRESS: "WA_PROGRESS",
     RESULT: "WA_RESULT",

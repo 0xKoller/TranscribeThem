@@ -21,6 +21,7 @@ public final class HTTPServer: @unchecked Sendable {
         self.onActivity = onActivity
     }
 
+    private let allowedExtensionIds = OriginPolicy.allowedExtensionIds()
     private let serverQueue = DispatchQueue(label: "wa.server")
     private var activeHandlers: [UUID: ConnectionHandler] = [:]
     private let handlersLock = NSLock()
@@ -101,23 +102,18 @@ public final class HTTPServer: @unchecked Sendable {
     private func handleRequest(_ req: HTTPRequest) async -> HTTPResponse {
         let origin = req.headers["origin"]
 
-        // Cross-Origin / Security Check:
-        // Reject arbitrary web pages calling localhost from regular web contexts
-        if let origin = origin, !origin.isEmpty {
-            let isExtension = origin.starts(with: "chrome-extension://")
-            let isLocal = origin.starts(with: "http://127.0.0.1") || origin.starts(with: "http://localhost")
-            if !isExtension && !isLocal {
-                NSLog("[WACompanion] Blocked untrusted origin: %@", origin)
-                let body = Data("{\"ok\":false,\"error\":\"Forbidden: untrusted origin\"}".utf8)
-                return HTTPResponse(statusCode: 403, statusText: "Forbidden", headers: ["Content-Type": "application/json"], body: body)
-            }
+        // Only our extension or a loopback page. Hosts are compared exactly.
+        if !OriginPolicy.isTrusted(origin, extensionIds: allowedExtensionIds) {
+            NSLog("[WACompanion] Blocked untrusted origin: %@", origin ?? "")
+            let body = Data("{\"ok\":false,\"error\":\"Forbidden: untrusted origin\"}".utf8)
+            return HTTPResponse(statusCode: 403, statusText: "Forbidden", headers: ["Content-Type": "application/json"], body: body)
         }
 
         let allowOrigin = origin ?? "*"
         var corsHeaders = [
             "Access-Control-Allow-Origin": allowOrigin,
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-WA-Token, X-Language",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-WA-Token, X-Language, X-Site",
             "Access-Control-Max-Age": "86400"
         ]
 
@@ -207,7 +203,7 @@ public final class HTTPServer: @unchecked Sendable {
             var audioData: Data? = nil
             var mimeType: String? = req.headers["content-type"]
             var languageHint: String? = req.headers["x-language"]
-            var site = "whatsapp"
+            var site = req.headers["x-site"].flatMap { $0.isEmpty ? nil : $0 } ?? "whatsapp"
 
             let cType = (req.headers["content-type"] ?? "").lowercased()
             if cType.contains("application/json") {
@@ -478,7 +474,7 @@ private final class ConnectionHandler: @unchecked Sendable {
         return [
             "Access-Control-Allow-Origin": allowOrigin,
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-WA-Token, X-Language",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-WA-Token, X-Language, X-Site",
         ]
     }
 

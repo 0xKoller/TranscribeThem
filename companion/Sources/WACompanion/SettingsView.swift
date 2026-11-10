@@ -81,6 +81,19 @@ struct SettingsContent: View {
                 Toggle(L("Abrir la ventana al iniciar"), isOn: openAtLaunchBinding)
             }
 
+            Section(L("Actualizaciones")) {
+                Toggle(L("Buscar actualizaciones al abrir la app"), isOn: Binding(
+                    get: { model.checkUpdatesAtLaunch }, set: { model.checkUpdatesAtLaunch = $0 }
+                ))
+                HStack {
+                    Button(L("Buscar ahora")) { model.checkForUpdates() }
+                        .disabled(model.update == .checking)
+                    updateStatus
+                }
+                Text(L("Consulta la última versión publicada en GitHub. No envía datos tuyos."))
+                    .font(.caption).foregroundStyle(palette.secondary)
+            }
+
             DisclosureGroup(L("Avanzado")) {
                 Text(L("Puerto local: 8765"))
                     .foregroundStyle(palette.secondary)
@@ -97,6 +110,22 @@ struct SettingsContent: View {
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .tint(palette.accent)
+    }
+
+    @ViewBuilder
+    private var updateStatus: some View {
+        switch model.update {
+        case .idle:
+            EmptyView()
+        case .checking:
+            ProgressView().controlSize(.small)
+        case .upToDate(let version):
+            Text(LF("Estás al día (v%@).", version)).foregroundStyle(palette.secondary)
+        case .available(let release):
+            Link(LF("Descargar la versión %@", release.version), destination: release.pageURL)
+        case .failed:
+            Text(L("No se pudo consultar. Revisá la conexión.")).foregroundStyle(.red)
+        }
     }
 
     private var debugBinding: Binding<Bool> {

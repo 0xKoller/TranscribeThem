@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { downloadPct } from "../src/download-progress.js";
+import { downloadPct } from "../src/download-progress.mjs";
 
 const encoder = { loaded: 400, total: 800 * 1024 * 1024 };
 assert.equal(downloadPct(new Map([["enc", encoder]]), 0), 0);

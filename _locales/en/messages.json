@@ -536,5 +536,48 @@
   },
   "companionChecking": {
     "message": "Checking the local app…"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "cancelHint": {
+    "message": "(click to cancel)"
+  },
+  "transcriptLabel": {
+    "message": "Transcript"
+  },
+  "cmdTranscribeLatest": {
+    "message": "Transcribe the newest voice note on screen"
+  },
+  "transcribeVisible": {
+    "message": "Transcribe the notes on screen"
+  },
+  "transcribeVisibleCount": {
+    "message": "Transcribing $COUNT$ note(s)…",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "transcribeVisibleNone": {
+    "message": "No untranscribed notes on screen."
+  },
+  "shortcutHint": {
+    "message": "Shortcut for the newest note: $KEY$",
+    "placeholders": {
+      "key": {
+        "content": "$1"
+      }
+    }
+  },
+  "shortcutUnset": {
+    "message": "not set"
+  },
+  "shortcutTitle": {
+    "message": "Keyboard shortcut"
+  },
+  "shortcutBody": {
+    "message": "Transcribes the newest voice note on screen. Change it at chrome://extensions/shortcuts."
   }
 }

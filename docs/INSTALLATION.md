@@ -1,4 +1,4 @@
-# Install TranscribeThem 0.4.0
+# Install TranscribeThem 0.5.0
 
 Download TranscribeThem, install it, and transcribe a WhatsApp or X DM voice note. You do not need developer tools, an API key, or a paid transcription account. The Mac app's interface is available in English and Spanish. Pick the language in Settings. This guide uses the Spanish labels where the app shows them.
 
@@ -13,24 +13,24 @@ Requirements:
 - For the Mac app: macOS 14 or later and an Apple Silicon chip (M1 or newer). Check Apple menu, About This Mac. The DMG does not run on Intel Macs, Windows, or Linux. On those systems, use the extension alone.
 - Internet access the first time a model downloads. Leave enough free disk space for the model caches. Larger models use more disk and memory.
 
-Download from the [v0.4.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.4.0):
+Download from the [v0.5.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.5.0):
 
-- [Mac app DMG](https://github.com/0xKoller/TranscribeThem/releases/download/v0.4.0/TranscribeThem-0.4.0.dmg)
-- [Chrome extension ZIP](https://github.com/0xKoller/TranscribeThem/releases/download/v0.4.0/TranscribeThem-extension-0.4.0.zip)
-- [SHA-256 checksums](https://github.com/0xKoller/TranscribeThem/releases/download/v0.4.0/SHA256SUMS.txt) (optional)
+- [Mac app DMG](https://github.com/0xKoller/TranscribeThem/releases/download/v0.5.0/TranscribeThem-0.5.0.dmg)
+- [Chrome extension ZIP](https://github.com/0xKoller/TranscribeThem/releases/download/v0.5.0/TranscribeThem-extension-0.5.0.zip)
+- [SHA-256 checksums](https://github.com/0xKoller/TranscribeThem/releases/download/v0.5.0/SHA256SUMS.txt) (optional)
 
 Download the named extension ZIP, not GitHub's "Source code (zip)". The source archive needs a build step and will not load in Chrome as-is.
 
 ## 2. Install the Chrome extension
 
-1. Unzip `TranscribeThem-extension-0.4.0.zip`. On macOS, double-click it in Finder. On Windows, use Extract All.
+1. Unzip `TranscribeThem-extension-0.5.0.zip`. On macOS, double-click it in Finder. On Windows, use Extract All.
 2. Move the extracted folder somewhere permanent, such as a `Chrome Extensions` folder inside Documents. Chrome reads the extension from this folder, so keep it after installation.
 3. Open the extracted folder and check that it contains `manifest.json`, `src`, `icons`, and `vendor`. If there is another folder inside, use the inner folder that directly contains `manifest.json`.
 4. Open Chrome. Paste `chrome://extensions` into the address bar and press Enter.
 5. Turn on Developer mode in the top-right corner. Keep it enabled while using this unpacked extension.
 6. Click Load unpacked (Spanish Chrome: Cargar descomprimida).
 7. Select the folder that directly contains `manifest.json`, then confirm the selection.
-8. Check that a TranscribeThem card appears, its switch is enabled, and its version is 0.4.0.
+8. Check that a TranscribeThem card appears, its switch is enabled, and its version is 0.5.0.
 9. Click Chrome's puzzle-piece Extensions button, then pin TranscribeThem so its icon is easy to find.
 10. Open [WhatsApp Web](https://web.whatsapp.com), sign in if needed, and reload the tab if it was already open.
 
@@ -40,7 +40,7 @@ This follows Chrome's [unpacked-extension installation flow](https://support.goo
 
 Skip to section 4 if you are using only the extension.
 
-1. Open `TranscribeThem-0.4.0.dmg` in Finder.
+1. Open `TranscribeThem-0.5.0.dmg` in Finder.
 2. Drag TranscribeThem.app onto the Applications shortcut in the disk image.
 3. Wait for the copy to finish, then eject the TranscribeThem disk image from Finder's sidebar.
 4. Open Finder, Applications, TranscribeThem. Run the installed copy, not the copy inside the DMG.
@@ -130,6 +130,8 @@ There is no automatic updater for this manually loaded extension.
 
 Keeping the same extension folder avoids unnecessarily removing and reinstalling the extension, which can discard its settings and model cache.
 
+**Updating from 0.4.0 or earlier to 0.5.0:** this one time, remove the old extension and load it again. Version 0.5.0 gives the extension a fixed ID, and Chrome treats it as a new extension. In `chrome://extensions`, click Remove on the old TranscribeThem card, then Load unpacked on the new folder. Its settings, remembered transcripts, and downloaded Whisper model start fresh; pick your language and engine again. Update the Mac app at the same time: the 0.5.0 app only talks to the 0.5.0 extension.
+
 ## Uninstalling
 
 In `chrome://extensions`, click Remove on TranscribeThem. You can then delete its extracted folder. Quit the Mac app and move it from Applications to Trash. Removing the app does not delete downloaded model caches or local settings. For compatibility with earlier versions, its settings and statistics live in `~/Library/Application Support/WA Local Transcribe/`.
@@ -147,6 +149,15 @@ Both files should report OK. If you only downloaded one artifact, the other will
 ## Need help?
 
 [Open an issue](https://github.com/0xKoller/TranscribeThem/issues) with your operating system, Chrome version, extension version, selected engine, and the exact error. Do not attach private voice notes or conversations.
+
+## New in 0.5.0
+
+- Click a note's button while it is queued or transcribing to cancel it.
+- On a WhatsApp Web or X tab, the toolbar popup has Transcribe the notes on screen. Alt+Shift+T transcribes the newest note on screen. Change the shortcut at `chrome://extensions/shortcuts`.
+- The extension has a fixed ID, and the Mac app only accepts that extension. Other extensions and websites cannot use the app. See the update note above.
+- Audio goes from the extension to the Mac app as raw bytes, a third smaller than before.
+- The Mac app can check GitHub for a newer release: Settings, Actualizaciones (Updates). It only checks when you click Buscar ahora (Check now) or turn on the launch check. Both are off by default.
+- No code is loaded from a CDN. The extension no longer asks for access to cdn.jsdelivr.net.
 
 ## New in 0.4.0
 

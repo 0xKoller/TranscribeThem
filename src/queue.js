@@ -28,6 +28,14 @@
           drain();
         });
       },
+      /** Drop a job that has not started. Its promise resolves with null. */
+      cancel(match) {
+        const index = items.findIndex((item) => match(item.job));
+        if (index < 0) return false;
+        const [item] = items.splice(index, 1);
+        item.resolve(null);
+        return true;
+      },
       get pending() {
         return items.length;
       },

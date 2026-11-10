@@ -1,4 +1,4 @@
-/* global waInitSettingsUi, waApplyI18n */
+/* global waInitSettingsUi, waApplyI18n, waT */
 
 waApplyI18n(document);
 
@@ -27,3 +27,15 @@ waInitSettingsUi({
   clearTranscriptsBtn: document.getElementById("clear-transcripts"),
   clearTranscriptsStatusEl: document.getElementById("clear-transcripts-status"),
 });
+
+(async function showShortcut() {
+  const el = document.getElementById("shortcut-key");
+  if (!el || !chrome.commands) return;
+  try {
+    const commands = await chrome.commands.getAll();
+    const command = commands.find((c) => c.name === "transcribe-latest");
+    el.textContent = (command && command.shortcut) || waT("shortcutUnset");
+  } catch (_) {
+    /* keep the placeholder */
+  }
+})();

@@ -35,12 +35,12 @@ function boot({ stored = {}, app }) {
     alarms: { create() {}, onAlarm: { addListener() {} } },
   };
   const ctx = createContext({
-    chrome, URL, AbortSignal, console: { log() {} },
+    chrome, URL, AbortSignal, AbortController, atob, Uint8Array, console: { log() {} },
     setTimeout: (fn) => setTimeout(fn, 0),
     fetch: async (url, options = {}) => {
       const path = new URL(url).pathname;
       calls.push(path);
-      const out = app(path, options, calls.filter((p) => p === path).length);
+      const out = await app(path, options, calls.filter((p) => p === path).length);
       if (!out) throw new Error("Failed to fetch");
       return { ok: out.status < 400, status: out.status, json: async () => out.body || {} };
     },
@@ -134,5 +134,60 @@ const preloads = (t) => t.offscreenMessages.filter((m) => m.type === "WA_PRELOAD
   const res = await down.send({ type: "WA_TEXT_ACTION", action: "translate", text: "x", targetLanguage: "en" });
   assert.equal(res.ok, false);
   assert.ok(res.error.length > 10);
+}
+// Audio goes to the app as raw bytes with the language and site in headers.
+{
+  let sent = null;
+  const t = boot({
+    stored: { engineMode: "companion", languageMode: "en" },
+    app: (path, options) => {
+      if (path !== "/transcribe") return appUp(path);
+      sent = options;
+      return { status: 200, body: { ok: true, text: "hi", audioSeconds: 1, transcribeMs: 5, words: [] } };
+    },
+  });
+  await t.send({ type: "WA_TRANSCRIBE", requestId: "b1", audioBase64: "AQID", mimeType: "audio/ogg; codecs=opus", byteLength: 3 });
+  for (let i = 0; i < 20 && !t.tabMessages.some((m) => m.type === "WA_RESULT"); i++) await t.settle();
+  assert.ok(sent.body instanceof Uint8Array, "audio goes as bytes");
+  assert.deepEqual([...sent.body], [1, 2, 3]);
+  assert.equal(sent.headers["Content-Type"], "audio/ogg; codecs=opus");
+  assert.equal(sent.headers["X-Language"], "en");
+  assert.equal(sent.headers["X-Site"], "whatsapp");
+}
+
+// Cancel: a queued note never reaches the app; a running one is aborted,
+// sends nothing back and does not fall back to Whisper.
+{
+  const hanging = [];
+  const t = boot({
+    stored: { engineMode: "auto" },
+    app: (path, options) => {
+      if (path !== "/transcribe") return appUp(path);
+      return new Promise((resolve, reject) => {
+        hanging.push(resolve);
+        options.signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })));
+      });
+    },
+  });
+  await t.send({ type: "WA_TRANSCRIBE", requestId: "c1", audioBase64: "AAAA", mimeType: "audio/ogg" });
+  await t.send({ type: "WA_TRANSCRIBE", requestId: "c2", audioBase64: "AAAA", mimeType: "audio/ogg" });
+  for (let i = 0; i < 20 && hanging.length < 1; i++) await t.settle();
+  assert.equal(hanging.length, 1, "c1 is running, c2 waits");
+
+  await t.send({ type: "WA_CANCEL", requestId: "c2" });
+  await t.send({ type: "WA_CANCEL", requestId: "c1" });
+  for (let i = 0; i < 5; i++) await t.settle();
+  const forC = (id) => t.tabMessages.filter((m) => m.requestId === id && m.type !== "WA_PROGRESS");
+  assert.equal(forC("c1").length, 0, "nothing comes back for a cancelled note");
+  assert.equal(forC("c2").length, 0);
+  assert.equal(t.calls.filter((p) => p === "/transcribe").length, 1, "the queued note never ran");
+  assert.equal(t.offscreenMessages.filter((m) => m.type === "WA_TRANSCRIBE").length, 0, "no Whisper fallback");
+
+  // The queue keeps working afterwards.
+  await t.send({ type: "WA_TRANSCRIBE", requestId: "c3", audioBase64: "AAAA", mimeType: "audio/ogg" });
+  for (let i = 0; i < 20 && hanging.length < 2; i++) await t.settle();
+  hanging[1]({ status: 200, body: { ok: true, text: "tres", words: [] } });
+  for (let i = 0; i < 20 && !t.tabMessages.some((m) => m.requestId === "c3" && m.type === "WA_RESULT"); i++) await t.settle();
+  assert.ok(t.tabMessages.some((m) => m.requestId === "c3" && m.type === "WA_RESULT"));
 }
 console.log("background.test.mjs ok");

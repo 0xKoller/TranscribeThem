@@ -156,3 +156,10 @@
 "mediana %@" = "median %@";
 "¿Borrar todos los textos guardados?" = "Delete all saved transcripts?";
 "Últimos 7 días" = "Last 7 days";
+"Actualizaciones" = "Updates";
+"Buscar actualizaciones al abrir la app" = "Check for updates when the app opens";
+"Buscar ahora" = "Check now";
+"Consulta la última versión publicada en GitHub. No envía datos tuyos." = "Looks up the latest version published on GitHub. It sends none of your data.";
+"Estás al día (v%@)." = "You are up to date (v%@).";
+"Descargar la versión %@" = "Download version %@";
+"No se pudo consultar. Revisá la conexión." = "Could not check. Check your connection.";

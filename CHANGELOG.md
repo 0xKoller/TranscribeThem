@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0 — 2026-11-10
+
+- Cancel a note by clicking its button while it is queued or transcribing. A running Mac app request is aborted and does not fall back to Whisper.
+- Transcribe the notes on screen from the toolbar popup, and the newest one with Alt+Shift+T.
+- Fixed extension ID through a `key` in the manifest. Updating from 0.4.0 needs one remove and load unpacked; settings and caches start fresh.
+- The Mac app accepts only the TranscribeThem extension (exact ID) and loopback pages, comparing hosts exactly. Extra IDs through `WA_COMPANION_EXTENSION_IDS`.
+- Audio goes to the Mac app as raw bytes with `X-Language` and `X-Site` headers. JSON uploads still work.
+- Optional update check in the Mac app against GitHub releases, off by default.
+- Removed the cdn.jsdelivr.net host permission.
+- Screen readers announce the status and the transcript.
+- Playwright end-to-end test (`npm run test:e2e`), Chrome Web Store package script, listing notes, and privacy policy.
+
 ## 0.4.0 — 2026-11-10
 
 - Transcripts are remembered per message in the browser (last 300), with a setting and a clear button.

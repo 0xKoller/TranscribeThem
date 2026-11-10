@@ -6,6 +6,8 @@ const OFFSCREEN_URL = "src/offscreen.html";
 
 const queue = createSerialQueue();
 const pending = new Map(); // requestId -> { tabId, frameId, resolve, reject }
+const cancelled = new Set(); // running jobs the user cancelled; drop their results
+const companionAborts = new Map(); // requestId -> AbortController
 
 function log(...args) {
   console.log(LOG, ...args);
@@ -66,6 +68,7 @@ function siteFromSender(sender) {
 }
 
 function forwardToTab(requestId, message) {
+  if (cancelled.has(requestId)) return;
   const dest = pending.get(requestId);
   if (!dest || dest.tabId == null) return;
   chrome.tabs.sendMessage(dest.tabId, message, { frameId: dest.frameId }, () => {
@@ -78,20 +81,37 @@ function forwardToTab(requestId, message) {
 const MODEL_LOADING_WAIT_MS = 20000;
 const MODEL_LOADING_STEP_MS = 1500;
 
+function base64ToBytes(base64) {
+  const binary = atob(base64 || "");
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 async function postToCompanion(job, settings) {
   const port = settings.companionPort || 8765;
   const bytes = job.byteLength || (job.audioBase64 ? Math.round((job.audioBase64.length * 3) / 4) : 0);
-  const res = await fetch(`http://127.0.0.1:${port}/transcribe`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      audioBase64: job.audioBase64,
-      mimeType: job.mimeType || "audio/ogg",
-      language: waCompanionLanguage(settings.languageMode),
-      site: job.site || "unknown",
-    }),
-    signal: AbortSignal.timeout(waCompanionTimeoutMs(bytes)),
-  });
+  // One controller for the timeout and for a cancel from the page.
+  const controller = new AbortController();
+  const timeout = AbortSignal.timeout(waCompanionTimeoutMs(bytes));
+  timeout.addEventListener("abort", () => controller.abort(), { once: true });
+  companionAborts.set(job.requestId, controller);
+  let res;
+  try {
+    // Raw bytes instead of base64 JSON: a third smaller, no JSON parse in the app.
+    res = await fetch(`http://127.0.0.1:${port}/transcribe`, {
+      method: "POST",
+      headers: {
+        "Content-Type": job.mimeType || "audio/ogg",
+        "X-Language": waCompanionLanguage(settings.languageMode),
+        "X-Site": job.site || "unknown",
+      },
+      body: base64ToBytes(job.audioBase64),
+      signal: controller.signal,
+    });
+  } finally {
+    companionAborts.delete(job.requestId);
+  }
   if (res.status === 503) return { loading: true };
   if (!res.ok) throw new Error(`Companion HTTP ${res.status}`);
   const data = await res.json();
@@ -112,6 +132,7 @@ async function tryCompanionTranscribe(job, settings) {
     const giveUpAt = Date.now() + MODEL_LOADING_WAIT_MS;
     let attempt = await postToCompanion(job, settings);
     while (attempt.loading) {
+      if (cancelled.has(job.requestId)) throw new Error("cancelled");
       if (Date.now() >= giveUpAt) throw new Error("Companion HTTP 503");
       forwardToTab(job.requestId, {
         type: WA_MSG.PROGRESS,
@@ -144,6 +165,30 @@ async function tryCompanionTranscribe(job, settings) {
     log("Companion app not available or error:", err && err.message);
     return { error: err };
   }
+}
+
+function settleCancelled(requestId) {
+  cancelled.delete(requestId);
+  const slot = pending.get(requestId);
+  if (slot && slot.resolve) slot.resolve(null);
+  pending.delete(requestId);
+  return null;
+}
+
+// Queued: leaves the queue. Running: the app request is aborted, a Whisper
+// run cannot be stopped, so its result is dropped when it arrives.
+function cancelJob(requestId) {
+  if (!requestId) return;
+  if (queue.cancel((job) => job.requestId === requestId)) {
+    pending.delete(requestId);
+    log("cancelled queued job", requestId);
+    return;
+  }
+  if (!pending.has(requestId)) return;
+  cancelled.add(requestId);
+  const controller = companionAborts.get(requestId);
+  if (controller) controller.abort();
+  log("cancelled running job", requestId);
 }
 
 // One health check for everyone: the popup, the options page and the periodic
@@ -191,8 +236,10 @@ async function runTranscribe(job) {
   const settings = await waGetSettings();
 
   const mode = waNormalizeEngineMode(settings.engineMode, settings.useCompanion);
+  if (cancelled.has(job.requestId)) return settleCancelled(job.requestId);
   if (mode !== "browser") {
     const attempt = await tryCompanionTranscribe(job, settings);
+    if (cancelled.has(job.requestId)) return settleCancelled(job.requestId);
     if (attempt && attempt.result) {
       forwardToTab(job.requestId, attempt.result);
       waSetSettings({ lastError: null, companionActive: true });
@@ -236,6 +283,7 @@ async function runTranscribe(job) {
   });
 
   await ensureOffscreen();
+  if (cancelled.has(job.requestId)) return settleCancelled(job.requestId);
   return new Promise((resolve, reject) => {
     const prev = pending.get(job.requestId) || {};
     pending.set(job.requestId, { ...prev, resolve, reject });
@@ -318,6 +366,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .then((ids) => sendResponse({ ok: true, ids }))
       .catch((err) => sendResponse({ ok: false, error: String((err && err.message) || err) }));
     return true;
+  }
+
+  if (msg.type === WA_MSG.CANCEL) {
+    cancelJob(msg.requestId);
+    sendResponse({ ok: true });
+    return;
+  }
+
+  if ((msg.type === WA_MSG.RESULT || msg.type === WA_MSG.ERROR) && msg.requestId && cancelled.has(msg.requestId)) {
+    settleCancelled(msg.requestId);
+    return;
   }
 
   if (msg.type === WA_MSG.TRANSCRIBE && msg.target !== WA_TARGET.OFFSCREEN) {
@@ -482,6 +541,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return;
   }
 });
+
+// Keyboard shortcut: transcribe the newest voice note on screen.
+if (chrome.commands && chrome.commands.onCommand) {
+  chrome.commands.onCommand.addListener((command, tab) => {
+    if (command !== "transcribe-latest" || !tab || tab.id == null) return;
+    chrome.tabs.sendMessage(tab.id, { type: WA_MSG.TRANSCRIBE_VISIBLE, mode: "latest" }, () => {
+      void chrome.runtime.lastError;
+    });
+  });
+}
 
 // Keep "is the app there" fresh from one place instead of from every tab.
 const COMPANION_ALARM = "wa-companion-check";

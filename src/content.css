@@ -404,9 +404,9 @@
   cursor: default;
 }
 
-.wa-t-btn[data-busy="1"]:disabled {
+.wa-t-btn[data-busy="1"] {
   opacity: 1;
-  cursor: progress;
+  cursor: pointer;
 }
 
 .wa-t-wrap[data-phase="error"] .wa-t-btn {
