@@ -107,6 +107,28 @@
       <p class="hint muted" data-i18n="shortcutBody"></p>
     </section>
 
+    <section class="panel">
+      <h2 data-i18n="optUpdates"></h2>
+      <div id="update-box" class="update-card" role="status" hidden>
+        <p id="update-title" class="update-title"></p>
+        <p id="update-detail" class="update-detail"></p>
+        <p id="update-steps" class="update-detail muted"></p>
+        <button type="button" id="update-open" class="link-btn" data-i18n="updateOpen"></button>
+      </div>
+      <div id="update-controls">
+        <label class="debug-toggle">
+          <input type="checkbox" id="check-updates" checked />
+          <span data-i18n="optCheckUpdates"></span>
+        </label>
+      </div>
+      <p id="update-channel" class="hint muted"></p>
+      <p id="update-last" class="hint muted" hidden></p>
+      <p id="update-now-row">
+        <button type="button" id="check-updates-now" class="link-btn" data-i18n="optCheckNow"></button>
+        <span id="check-updates-status" class="inline-status" role="status" hidden></span>
+      </p>
+    </section>
+
     <p id="error" class="error" hidden></p>
 
     <section class="panel">
@@ -148,6 +170,8 @@
     <script src="companion-sync.js"></script>
     <script src="transcript-cache.js"></script>
     <script src="settings-ui.js"></script>
+    <script src="update-check.js"></script>
+    <script src="update-ui.js"></script>
     <script src="options.js"></script>
   </body>
 </html>

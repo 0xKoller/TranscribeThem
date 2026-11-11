@@ -1,4 +1,4 @@
-/* global waInitSettingsUi, waApplyI18n, waSiteId, waT, WA_MSG */
+/* global waInitSettingsUi, waApplyI18n, waSiteId, waT, WA_MSG, waInitUpdateUi */
 
 waApplyI18n(document);
 
@@ -19,6 +19,15 @@ waInitSettingsUi({
   companionBoxEl: document.getElementById("companion-box"),
   companionStatusEl: document.getElementById("companion-status"),
   companionHintEl: document.getElementById("companion-hint"),
+});
+
+waInitUpdateUi({
+  boxEl: document.getElementById("update-box"),
+  titleEl: document.getElementById("update-title"),
+  detailEl: document.getElementById("update-detail"),
+  stepsEl: document.getElementById("update-steps"),
+  openBtn: document.getElementById("update-open"),
+  reloadedEl: document.getElementById("update-reloaded"),
 });
 
 // "Transcribe the notes on screen", only on WhatsApp Web and X tabs.

@@ -55,6 +55,8 @@ The Store ID differs from the ID of the unpacked extension (`bnmnjapomgkgljobkca
 | Host `huggingface.co`, `hf.co` | Downloads the Whisper model weights on first use. |
 | Host `127.0.0.1`, `localhost` | Talks to the optional TranscribeThem Mac app on the same computer. |
 
+**Updates:** The Web Store copy does not look for updates or reload itself: both are off when the manifest has `update_url`, which Chrome adds to store installs. No permission was added for updates.
+
 **Remote code:** No. All JavaScript and WASM ship in the package (`src/`, `vendor/ort/`). Model weights are data, not code.
 
 **Data usage:** The extension handles "Website content" (voice note audio and its transcript) only to provide the transcription, on the device. It does not sell, transfer, or use data for anything else. Check all three certifications.

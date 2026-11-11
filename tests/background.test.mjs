@@ -6,12 +6,13 @@ import { chromeI18n } from "./helpers/i18n-chrome.mjs";
 const read = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8");
 
 // Loads the real service worker with a fake chrome and a fake Mac app.
-function boot({ stored = {}, app }) {
+function boot({ stored = {}, app, manifest = { version: "0.0.0" } }) {
   const store = { ...stored };
   const listeners = [];
   const offscreenMessages = [];
   const tabMessages = [];
   const calls = [];
+  const badge = { text: "" };
   let offscreen = false;
   const chrome = {
     i18n: chromeI18n("es"),
@@ -24,7 +25,7 @@ function boot({ stored = {}, app }) {
     runtime: {
       onMessage: { addListener: (fn) => listeners.push(fn) },
       sendMessage: (msg, cb) => { offscreenMessages.push(msg); if (cb) cb(); },
-      getManifest: () => ({ version: "0.0.0" }),
+      getManifest: () => manifest,
       getContexts: async () => [],
     },
     offscreen: {
@@ -33,6 +34,10 @@ function boot({ stored = {}, app }) {
     },
     tabs: { sendMessage: (_tab, msg, _opts, cb) => { tabMessages.push(msg); if (cb) cb(); } },
     alarms: { create() {}, onAlarm: { addListener() {} } },
+    action: {
+      setBadgeText: async ({ text }) => { badge.text = text; },
+      setBadgeBackgroundColor: async () => {},
+    },
   };
   const ctx = createContext({
     chrome, URL, AbortSignal, AbortController, atob, Uint8Array, console: { log() {} },
@@ -53,7 +58,7 @@ function boot({ stored = {}, app }) {
     if (keep !== true) resolve(undefined);
   });
   const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
-  return { send, settle, store, offscreenMessages, tabMessages, calls };
+  return { send, settle, store, offscreenMessages, tabMessages, calls, badge };
 }
 
 const appUp = (path) => {
@@ -189,5 +194,60 @@ const preloads = (t) => t.offscreenMessages.filter((m) => m.type === "WA_PRELOAD
   hanging[1]({ status: 200, body: { ok: true, text: "tres", words: [] } });
   for (let i = 0; i < 20 && !t.tabMessages.some((m) => m.requestId === "c3" && m.type === "WA_RESULT"); i++) await t.settle();
   assert.ok(t.tabMessages.some((m) => m.requestId === "c3" && m.type === "WA_RESULT"));
+}
+// Updates. A private build (no homepage_url) never asks GitHub.
+const RELEASES = "/repos/0xKoller/TranscribeThem/releases/latest";
+const release = { tag_name: "v0.6.0", html_url: "https://github.com/0xKoller/TranscribeThem/releases/tag/v0.6.0" };
+{
+  const t = boot({ app: appUp, manifest: { version: "0.5.0" } });
+  for (let i = 0; i < 5; i++) await t.settle();
+  assert.equal(t.calls.includes(RELEASES), false, "private builds never check");
+  assert.equal((await t.send({ type: "WA_CHECK_UPDATES", force: true })).error, "no_channel");
+  assert.equal(t.calls.includes(RELEASES), false);
+}
+// The public build checks once a day and shows a badge.
+{
+  const manifest = { version: "0.5.0", homepage_url: "https://github.com/0xKoller/TranscribeThem" };
+  const t = boot({ app: (path) => (path === RELEASES ? { status: 200, body: release } : appUp(path)), manifest });
+  for (let i = 0; i < 10 && !t.store.updateLatest; i++) await t.settle();
+  assert.equal(t.store.updateLatest.version, "0.6.0");
+  assert.equal(t.calls.filter((p) => p === RELEASES).length, 1);
+  for (let i = 0; i < 5 && t.badge.text === ""; i++) await t.settle();
+  assert.equal(t.badge.text, "↑");
+  // Within the day nothing new goes out, unless the user asks.
+  await t.send({ type: "WA_CHECK_UPDATES" });
+  assert.equal(t.calls.filter((p) => p === RELEASES).length, 1);
+  const res = await t.send({ type: "WA_CHECK_UPDATES", force: true });
+  assert.equal(res.ok, true);
+  assert.equal(res.notice.release.version, "0.6.0");
+  assert.equal(t.calls.filter((p) => p === RELEASES).length, 2);
+}
+// The setting turns the automatic check off.
+{
+  const manifest = { version: "0.5.0", homepage_url: "https://github.com/0xKoller/TranscribeThem" };
+  const t = boot({ stored: { checkUpdates: false }, app: (path) => (path === RELEASES ? { status: 200, body: release } : appUp(path)), manifest });
+  for (let i = 0; i < 5; i++) await t.settle();
+  assert.equal(t.calls.includes(RELEASES), false);
+}
+// A Chrome Web Store install is updated by Chrome and never checks.
+{
+  const manifest = { version: "0.5.0", homepage_url: "https://github.com/0xKoller/TranscribeThem", update_url: "https://clients2.google.com/service/update2/crx" };
+  const t = boot({ app: (path) => (path === RELEASES ? { status: 200, body: release } : appUp(path)), manifest });
+  for (let i = 0; i < 5; i++) await t.settle();
+  assert.equal(t.calls.includes(RELEASES), false);
+}
+// The app passes on its update and its version; an older extension shows the badge.
+{
+  const health = { status: 200, body: { ok: true, ready: true, version: "0.6.0", update: { version: "0.7.0", url: "https://github.com/0xKoller/TranscribeThem/releases/tag/v0.7.0" } } };
+  const t = boot({ app: (path) => (path === "/health" ? health : appUp(path)), manifest: { version: "0.5.0" } });
+  await t.send({ type: "WA_CHECK_COMPANION" });
+  assert.equal(t.store.appVersion, "0.6.0");
+  assert.equal(t.store.appUpdate.version, "0.7.0");
+  assert.equal(t.badge.text, "↑");
+  // When the app goes away its notice goes with it.
+  const down = boot({ stored: { appVersion: "0.6.0" }, app: appDown, manifest: { version: "0.5.0" } });
+  await down.send({ type: "WA_CHECK_COMPANION" });
+  assert.equal(down.store.appVersion, null);
+  assert.equal(down.badge.text, "");
 }
 console.log("background.test.mjs ok");

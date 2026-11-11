@@ -1,4 +1,4 @@
-/* global waInitSettingsUi, waApplyI18n, waT */
+/* global waInitSettingsUi, waApplyI18n, waT, waInitUpdateUi */
 
 waApplyI18n(document);
 
@@ -26,6 +26,20 @@ waInitSettingsUi({
   cacheTranscriptsEl: document.getElementById("cache-transcripts"),
   clearTranscriptsBtn: document.getElementById("clear-transcripts"),
   clearTranscriptsStatusEl: document.getElementById("clear-transcripts-status"),
+});
+
+waInitUpdateUi({
+  boxEl: document.getElementById("update-box"),
+  titleEl: document.getElementById("update-title"),
+  detailEl: document.getElementById("update-detail"),
+  stepsEl: document.getElementById("update-steps"),
+  openBtn: document.getElementById("update-open"),
+  toggleEl: document.getElementById("check-updates"),
+  controlsEl: document.getElementById("update-controls"),
+  channelEl: document.getElementById("update-channel"),
+  lastEl: document.getElementById("update-last"),
+  nowBtn: document.getElementById("check-updates-now"),
+  statusEl: document.getElementById("check-updates-status"),
 });
 
 (async function showShortcut() {

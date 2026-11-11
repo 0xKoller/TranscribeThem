@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 — 2026-11-11
+
+- Daily update check, on by default, in the Mac app and in the extension (GitHub installs only). Turn it off in Settings or Options.
+- The Mac app shows a banner with the release notes, a menu bar item, and one notification per version, and can skip a version.
+- Install and Restart: the app downloads the new DMG, checks it against `SHA256SUMS.txt` and GitHub's digest, checks the bundle ID, version and signature, replaces itself and reopens.
+- Optional extension folder kept by the app (Settings → Extension). The extension reloads by itself when a newer version lands there, never during a transcription.
+- The extension shows a badge and a notice in its popup and Options for a new release, or when it is older than the Mac app.
+- Copies installed from the Chrome Web Store never check: Chrome updates them. No new permissions.
+- The release script writes `SHA256SUMS.txt`.
+
 ## 0.5.0 — 2026-11-10
 
 - Cancel a note by clicking its button while it is queued or transcribing. A running Mac app request is aborted and does not fall back to Whisper.

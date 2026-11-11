@@ -1,3 +1,4 @@
+import AppKit
 import CompanionCore
 import SwiftUI
 
@@ -82,16 +83,55 @@ struct SettingsContent: View {
             }
 
             Section(L("Actualizaciones")) {
-                Toggle(L("Buscar actualizaciones al abrir la app"), isOn: Binding(
-                    get: { model.checkUpdatesAtLaunch }, set: { model.checkUpdatesAtLaunch = $0 }
-                ))
-                HStack {
-                    Button(L("Buscar ahora")) { model.checkForUpdates() }
-                        .disabled(model.update == .checking)
-                    updateStatus
+                if model.updateRepo == nil {
+                    Text(L("Esta copia de la app no busca actualizaciones."))
+                        .foregroundStyle(palette.secondary)
+                } else {
+                    Toggle(L("Buscar actualizaciones automáticamente"), isOn: Binding(
+                        get: { model.autoCheckUpdates }, set: { model.autoCheckUpdates = $0 }
+                    ))
+                    HStack {
+                        Button(L("Buscar ahora")) { model.checkForUpdates(manual: true) }
+                            .disabled(model.update == .checking)
+                        updateStatus
+                    }
+                    if let last = model.lastUpdateCheck {
+                        Text(LF("Última búsqueda: %@", last.formatted(Date.RelativeFormatStyle(presentation: .named).locale(AppLanguage.currentLocale))))
+                            .font(.caption).foregroundStyle(palette.secondary)
+                    }
+                    Text(L("Una vez por día consulta la última versión publicada en GitHub. No envía datos tuyos."))
+                        .font(.caption).foregroundStyle(palette.secondary)
                 }
-                Text(L("Consulta la última versión publicada en GitHub. No envía datos tuyos."))
-                    .font(.caption).foregroundStyle(palette.secondary)
+            }
+
+            if model.updateRepo != nil {
+                Section(L("Extensión")) {
+                    if let version = model.managedExtensionVersion {
+                        Text(LF("La app mantiene la extensión al día (v%@) en esta carpeta:", version))
+                        Text(ManagedExtension.folder.path)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                            .foregroundStyle(palette.secondary)
+                        Button(L("Mostrar en Finder")) {
+                            NSWorkspace.shared.activateFileViewerSelecting([ManagedExtension.folder])
+                        }
+                        Text(L("Si Chrome todavía usa otra carpeta, quitá esa extensión en chrome://extensions y cargá esta con Cargar descomprimida."))
+                            .font(.caption).foregroundStyle(palette.secondary)
+                    } else {
+                        Text(L("La app puede guardar la extensión en una carpeta y actualizarla junto con la app. La cargás una vez en Chrome y después se recarga sola."))
+                            .font(.callout).foregroundStyle(palette.secondary)
+                        HStack {
+                            Button(L("Preparar la carpeta…")) { model.setUpManagedExtension() }
+                                .disabled(model.extensionInstalling)
+                            if model.extensionInstalling { ProgressView().controlSize(.small) }
+                        }
+                        Text(L("Después, en chrome://extensions: activá Modo de desarrollador, quitá la extensión anterior, tocá Cargar descomprimida y elegí la carpeta Extension que se abre en Finder."))
+                            .font(.caption).foregroundStyle(palette.secondary)
+                    }
+                    if let error = model.extensionInstallError {
+                        Text(error).font(.caption).foregroundStyle(.red)
+                    }
+                }
             }
 
             DisclosureGroup(L("Avanzado")) {
@@ -122,9 +162,12 @@ struct SettingsContent: View {
         case .upToDate(let version):
             Text(LF("Estás al día (v%@).", version)).foregroundStyle(palette.secondary)
         case .available(let release):
-            Link(LF("Descargar la versión %@", release.version), destination: release.pageURL)
+            Button(LF("Ver la versión %@", release.version)) { NSWorkspace.shared.open(release.pageURL) }
+                .buttonStyle(.link)
         case .failed:
             Text(L("No se pudo consultar. Revisá la conexión.")).foregroundStyle(.red)
+        case .unavailable:
+            EmptyView()
         }
     }
 

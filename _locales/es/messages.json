@@ -579,5 +579,87 @@
   },
   "shortcutBody": {
     "message": "Transcribe la última nota de voz a la vista. Cambialo en chrome://extensions/shortcuts."
+  },
+  "optUpdates": {
+    "message": "Actualizaciones"
+  },
+  "optCheckUpdates": {
+    "message": "Buscar actualizaciones una vez por día"
+  },
+  "optCheckUpdatesHint": {
+    "message": "Consulta la última versión publicada en GitHub. No envía datos tuyos."
+  },
+  "optCheckNow": {
+    "message": "Buscar ahora"
+  },
+  "updateChecking": {
+    "message": "Buscando…"
+  },
+  "updateUpToDate": {
+    "message": "Estás al día."
+  },
+  "updateCheckFailed": {
+    "message": "No se pudo consultar. Revisá la conexión."
+  },
+  "updateLastChecked": {
+    "message": "Última búsqueda: $WHEN$",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      }
+    }
+  },
+  "updateByStore": {
+    "message": "Chrome actualiza esta extensión solo, desde la Chrome Web Store."
+  },
+  "updateNoChannel": {
+    "message": "Esta copia de la extensión no busca actualizaciones."
+  },
+  "updateAvailable": {
+    "message": "Hay una versión nueva: $VERSION$",
+    "placeholders": {
+      "version": {
+        "content": "$1"
+      }
+    }
+  },
+  "updateYouHave": {
+    "message": "Tenés la v$VERSION$.",
+    "placeholders": {
+      "version": {
+        "content": "$1"
+      }
+    }
+  },
+  "updateExtensionOld": {
+    "message": "La extensión quedó vieja"
+  },
+  "updateExtensionBehind": {
+    "message": "La app está en la v$APP$ y esta extensión en la v$EXT$.",
+    "placeholders": {
+      "app": {
+        "content": "$1"
+      },
+      "ext": {
+        "content": "$2"
+      }
+    }
+  },
+  "updateSteps": {
+    "message": "Bajá el ZIP nuevo, reemplazá la carpeta de la extensión, tocá Recargar en chrome://extensions y recargá WhatsApp Web y X."
+  },
+  "updateStepsStore": {
+    "message": "Chrome la actualiza solo. Para no esperar, tocá Actualizar en chrome://extensions con el Modo de desarrollador activado."
+  },
+  "updateOpen": {
+    "message": "Ver novedades y descargar"
+  },
+  "updateReloaded": {
+    "message": "Se actualizó a la v$VERSION$. Recargá WhatsApp Web y X para usarla.",
+    "placeholders": {
+      "version": {
+        "content": "$1"
+      }
+    }
   }
 }

@@ -2,12 +2,15 @@ import AppKit
 import CompanionCore
 import Foundation
 import SwiftUI
+import UserNotifications
 
 @MainActor
-public final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate {
+public final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelegate, UNUserNotificationCenterDelegate {
     private var statusItem: NSStatusItem!
     private var statusMenuItem: NSMenuItem!
     private var countMenuItem: NSMenuItem!
+    private var updateMenuItem: NSMenuItem!
+    private var updateTimer: Timer?
 
     private var server: HTTPServer?
     private let transcriber = Transcriber.shared
@@ -21,7 +24,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelega
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         model = AppModel(service: service)
-        if model?.checkUpdatesAtLaunch == true { model?.checkForUpdates() }
+        if Bundle.main.bundleURL.pathExtension == "app" {
+            UNUserNotificationCenter.current().delegate = self
+        }
         service.onChange = { [weak self] in
             Task { @MainActor in
                 self?.refreshUI()
@@ -47,6 +52,41 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelega
                 self?.refreshUI()
             }
         }
+        startUpdateSchedule()
+    }
+
+    /// The automatic check: at launch, every hour if a day has passed, and
+    /// after the Mac wakes up.
+    private func startUpdateSchedule() {
+        model.checkUpdatesIfDue()
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 60 * 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.model.checkUpdatesIfDue() }
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self, selector: #selector(didWake), name: NSWorkspace.didWakeNotification, object: nil
+        )
+    }
+
+    @objc private func didWake() {
+        // Give the network a moment to come back.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
+            self?.model.checkUpdatesIfDue()
+        }
+    }
+
+    @objc private func checkForUpdatesFromMenu() {
+        model.checkForUpdates(manual: true)
+        openSettings()
+    }
+
+    // Clicking the update notification opens the window with the banner.
+    public nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        Task { @MainActor in self.openWindow() }
+        completionHandler()
     }
 
     @objc private func languageDidChange() {
@@ -88,6 +128,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelega
         countMenuItem.isEnabled = false
         menu.addItem(countMenuItem)
 
+        updateMenuItem = NSMenuItem(title: "", action: #selector(openWindow), keyEquivalent: "")
+        updateMenuItem.target = self
+        updateMenuItem.isHidden = true
+        menu.addItem(updateMenuItem)
+
         menu.addItem(NSMenuItem.separator())
 
         let openItem = NSMenuItem(title: L("Abrir"), action: #selector(openWindow), keyEquivalent: "")
@@ -103,6 +148,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelega
         let settingsItem = NSMenuItem(title: L("Ajustes…"), action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
+
+        if model.updateRepo != nil {
+            let checkItem = NSMenuItem(title: L("Buscar actualizaciones…"), action: #selector(checkForUpdatesFromMenu), keyEquivalent: "")
+            checkItem.target = self
+            menu.addItem(checkItem)
+        }
 
         let quitItem = NSMenuItem(title: L("Salir"), action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
@@ -143,6 +194,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelega
             countMenuItem.title = L("Hoy: todavía no hay notas")
         } else {
             countMenuItem.title = LF("Hoy: %ld notas · %@", today.notes, Self.menuAudio(today.audioSeconds))
+        }
+        if let offer = model.offeredRelease {
+            updateMenuItem.title = LF("Hay una versión nueva (%@)…", offer.version)
+            updateMenuItem.isHidden = false
+        } else {
+            updateMenuItem.isHidden = true
         }
     }
 
@@ -216,6 +273,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, NSToolbarDelega
         let appMenu = NSMenu(title: "TranscribeThem")
         let about = NSMenuItem(title: L("Acerca de TranscribeThem"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(about)
+        if model.updateRepo != nil {
+            let check = NSMenuItem(title: L("Buscar actualizaciones…"), action: #selector(checkForUpdatesFromMenu), keyEquivalent: "")
+            check.target = self
+            appMenu.addItem(check)
+        }
         appMenu.addItem(.separator())
         let settings = NSMenuItem(title: L("Ajustes…"), action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self

@@ -13,7 +13,8 @@ TranscribeThem transcribes voice notes on your own computer. It has no server, n
 ## What leaves your computer
 
 - **Model weights.** The first time the browser engine runs, it downloads the Whisper model files from Hugging Face (`huggingface.co`). This request contains no audio and no text. The files are cached and reused.
-- **Update check (Mac app, optional).** If you click Check now or turn on the launch check in the Mac app, it asks GitHub for the latest public release. It sends nothing about you or your messages.
+- **Update check.** Once a day the Mac app, and the extension when it is installed from GitHub, ask GitHub (`api.github.com`) for the latest public release. The request carries no data about you or your messages; GitHub sees your IP address, as with any web request. Turn it off in the app's Settings → Updates or in the extension's Options → Updates. Copies installed from the Chrome Web Store never check: Chrome updates them.
+- **Update download.** Only when you click Install and Restart, the Mac app downloads the new release files from GitHub.
 
 Nothing else is sent anywhere. The extension does not read your messages, contacts, or chats beyond the voice notes you transcribe.
 

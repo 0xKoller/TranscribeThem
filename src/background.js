@@ -1,5 +1,7 @@
-/* global WA_MSG, WA_TARGET, WA_PHASE, createSerialQueue, waGetSettings, waSetSettings, mapError */
-importScripts("i18n.js", "messages.js", "settings.js", "companion-sync.js", "errors.js", "queue.js");
+/* global WA_MSG, WA_TARGET, WA_PHASE, createSerialQueue, waGetSettings, waSetSettings, mapError,
+   waUpdateRepo, waReleaseApiUrl, waParseRelease, waNormalizeAppUpdate, waUpdateDue, waUpdateNotice, waVersionParts,
+   waIsNewerVersion */
+importScripts("i18n.js", "messages.js", "settings.js", "companion-sync.js", "errors.js", "queue.js", "update-check.js");
 
 const LOG = "[wa-transcribe]";
 const OFFSCREEN_URL = "src/offscreen.html";
@@ -206,15 +208,100 @@ async function checkCompanion() {
       return { ok: false, error: `HTTP ${res.status}` };
     }
     const data = await res.json();
-    waSetSettings({
+    await waSetSettings({
       companionActive: true,
       companionFeatures: waNormalizeFeatures(data && data.features),
+      // The app checks GitHub once a day and passes on what it found.
+      appUpdate: waNormalizeAppUpdate(data && data.update),
+      appVersion: data && waVersionParts(data.version) ? String(data.version) : null,
     });
     waHelloCompanion();
+    await refreshUpdateBadge();
     return { ok: true, data };
   } catch (err) {
-    waSetSettings({ companionActive: false, companionFeatures: waNormalizeFeatures(null) });
+    await waSetSettings({ companionActive: false, companionFeatures: waNormalizeFeatures(null), appUpdate: null, appVersion: null });
+    await refreshUpdateBadge();
     return { ok: false, error: String((err && err.message) || err) };
+  }
+}
+
+// --- Updates ---------------------------------------------------------------
+// Only the public build checks GitHub itself (manifest homepage_url), once a
+// day. A failed attempt waits an hour before the next one.
+const UPDATE_RETRY_MS = 60 * 60 * 1000;
+
+function extensionVersion() {
+  return chrome.runtime.getManifest().version;
+}
+
+async function currentUpdateNotice() {
+  const settings = await waGetSettings();
+  return waUpdateNotice({
+    current: extensionVersion(),
+    own: settings.updateLatest,
+    fromApp: settings.appUpdate,
+    appVersion: settings.appVersion,
+  });
+}
+
+async function refreshUpdateBadge() {
+  if (!chrome.action || !chrome.action.setBadgeText) return;
+  try {
+    const notice = await currentUpdateNotice();
+    await chrome.action.setBadgeText({ text: notice ? "↑" : "" });
+    if (notice && chrome.action.setBadgeBackgroundColor) {
+      await chrome.action.setBadgeBackgroundColor({ color: "#6259a6" });
+    }
+  } catch (err) {
+    log("badge failed", err);
+  }
+}
+
+async function checkUpdates({ force = false } = {}) {
+  const repo = waUpdateRepo(chrome.runtime.getManifest());
+  if (!repo) return { ok: false, error: "no_channel", notice: await currentUpdateNotice() };
+  const settings = await waGetSettings();
+  const now = Date.now();
+  if (!force) {
+    if (!settings.checkUpdates) return { ok: true, skipped: true };
+    if (!waUpdateDue(settings.updateCheckedAt, now)) return { ok: true, skipped: true };
+    if (!waUpdateDue(settings.updateAttemptAt, now, UPDATE_RETRY_MS)) return { ok: true, skipped: true };
+  }
+  await waSetSettings({ updateAttemptAt: now });
+  try {
+    const res = await fetch(waReleaseApiUrl(repo), {
+      headers: { Accept: "application/vnd.github+json" },
+      signal: AbortSignal.timeout(15000),
+    });
+    const release = res.ok ? waParseRelease(await res.json()) : null;
+    if (!release) throw new Error(res.ok ? "bad release" : `HTTP ${res.status}`);
+    await waSetSettings({ updateLatest: release, updateCheckedAt: now });
+    await refreshUpdateBadge();
+    return { ok: true, release, checkedAt: now, notice: await currentUpdateNotice() };
+  } catch (err) {
+    log("update check failed", err);
+    return { ok: false, error: String((err && err.message) || err), notice: await currentUpdateNotice() };
+  }
+}
+
+// The Mac app can keep this unpacked folder up to date. Chrome does not pick
+// up new files by itself, so when manifest.json on disk is newer than the one
+// running, reload, but never in the middle of a transcription.
+async function reloadIfNewerOnDisk() {
+  const running = chrome.runtime.getManifest();
+  if (running.update_url) return false;
+  if (queue.busy || queue.pending > 0 || pending.size > 0) return false;
+  try {
+    const res = await fetch(chrome.runtime.getURL("manifest.json"), { cache: "no-store" });
+    const disk = res.ok ? await res.json() : null;
+    if (!disk || !waIsNewerVersion(disk.version, running.version)) return false;
+    log("newer version on disk, reloading", running.version, "→", disk.version);
+    await waSetSettings({ updatedFrom: running.version });
+    chrome.runtime.reload();
+    return true;
+  } catch (err) {
+    log("disk version check failed", err);
+    return false;
   }
 }
 
@@ -511,6 +598,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === WA_MSG.CHECK_UPDATES) {
+    checkUpdates({ force: msg.force === true }).then(sendResponse);
+    return true;
+  }
+
   if (msg.type === WA_MSG.CHECK_COMPANION) {
     checkCompanion().then(sendResponse);
     return true;
@@ -557,9 +649,14 @@ const COMPANION_ALARM = "wa-companion-check";
 if (chrome.alarms) {
   chrome.alarms.create(COMPANION_ALARM, { periodInMinutes: 1 });
   chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === COMPANION_ALARM) checkCompanion();
+    if (alarm.name !== COMPANION_ALARM) return;
+    checkCompanion();
+    // Cheap: reads storage and only goes to GitHub once a day.
+    checkUpdates();
+    reloadIfNewerOnDisk();
   });
 }
 
 checkCompanion();
+checkUpdates();
 log("service worker ready");

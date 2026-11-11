@@ -6,10 +6,10 @@ Transcribe WhatsApp Web and X DM voice notes on your device. This is a Chrome ex
 
 ## Download and install
 
-Download the files from the [v0.5.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.5.0):
+Download the files from the [v0.6.0 release](https://github.com/0xKoller/TranscribeThem/releases/tag/v0.6.0):
 
-- `TranscribeThem-0.5.0.dmg`: the recommended Mac app for Apple Silicon and macOS 14 or later. Open the DMG, drag TranscribeThem to Applications, and open it. With the app running, the extension uses Parakeet. The app has an ad hoc signature. It is not signed with Developer ID and is not notarized. If macOS blocks it, go to System Settings, Privacy & Security, and click Open Anyway.
-- `TranscribeThem-extension-0.5.0.zip`: the Chrome extension, required on Chrome 113 or later. Unzip it, open `chrome://extensions`, turn on Developer mode, click Load unpacked, and choose the folder that contains `manifest.json`.
+- `TranscribeThem-0.6.0.dmg`: the recommended Mac app for Apple Silicon and macOS 14 or later. Open the DMG, drag TranscribeThem to Applications, and open it. With the app running, the extension uses Parakeet. The app has an ad hoc signature. It is not signed with Developer ID and is not notarized. If macOS blocks it, go to System Settings, Privacy & Security, and click Open Anyway.
+- `TranscribeThem-extension-0.6.0.zip`: the Chrome extension, required on Chrome 113 or later. Unzip it, open `chrome://extensions`, turn on Developer mode, click Load unpacked, and choose the folder that contains `manifest.json`.
 
 Open or reload [WhatsApp Web](https://web.whatsapp.com) after installing the extension and click Transcribe on a voice note. You do not need to play it first. No message is sent.
 
@@ -32,11 +32,13 @@ Click a note's button while it is queued or transcribing to cancel it. On a What
 
 With the Mac app on macOS 26 or later, a transcript gets Summarize and Translate actions. Both run on the Mac with Apple's on-device model. On older systems the actions do not appear.
 
+Once a day the Mac app and the extension check GitHub for a new release. This is on by default; turn it off in the app's Settings or the extension's Options. When there is one, the app shows a banner with the release notes and **Install and Restart**, and the extension shows a badge and a notice in its popup. In the app's Settings → Extension, the app can also keep the extension in a folder it updates together with the app; the extension then reloads by itself.
+
 ## Privacy and network
 
 Audio is processed on your machine, in the browser or in the app through `127.0.0.1:8765`. Models download from Hugging Face. The ONNX Runtime WASM files ship inside the extension, so no code is loaded from a CDN. WhatsApp Web and X keep using their own network connections.
 
-The extension has a fixed ID (`bnmnjapomgkgljobkcalefbbnfcfjlmd`, set by the `key` in `manifest.json`). The Mac app only accepts requests from that extension or from a page on the loopback host, so other extensions and websites cannot use it. The app can check GitHub for a newer release, only when you ask in its Settings. The full policy is in [docs/PRIVACY.md](docs/PRIVACY.md).
+The extension has a fixed ID (`bnmnjapomgkgljobkcalefbbnfcfjlmd`, set by the `key` in `manifest.json`). The Mac app only accepts requests from that extension or from a page on the loopback host, so other extensions and websites cannot use it. Once a day the app and the extension ask GitHub for the latest release; the request carries no data about you. Turn it off in Settings or Options. The full policy is in [docs/PRIVACY.md](docs/PRIVACY.md).
 
 There is no analytics and no backend of our own. The app stores settings and statistics on the Mac. It uses temporary audio files while transcribing and deletes them when done. The last transcript may stay in memory while the app is open. From the extension you can save audio and text if you ask it to.
 
@@ -79,7 +81,7 @@ To run a development build of the app next to the installed one, set `WA_COMPANI
 
 ## Limitations
 
-This is version 0.5.0. Transcripts can contain errors. If WhatsApp or X change their interface, the extension may stop working. It is not on the Chrome Web Store yet. The Mac installer is Apple Silicon only.
+This is version 0.6.0. Transcripts can contain errors. If WhatsApp or X change their interface, the extension may stop working. It is not on the Chrome Web Store yet. The Mac installer is Apple Silicon only.
 
 ## License
 
@@ -89,4 +91,6 @@ Independent project, not affiliated with WhatsApp, Meta, or X.
 
 ## Updating
 
-Replace the extension files, click Reload on `chrome://extensions`, and reload the WhatsApp and X tabs as well. Tabs that were already open keep the previous version until you reload them.
+From 0.6.0 on, the Mac app updates itself: click **Install and Restart** on the banner. If you let the app keep the extension folder (Settings → Extension), the extension updates with it and reloads by itself.
+
+Otherwise, replace the extension files, click Reload on `chrome://extensions`, and reload the WhatsApp and X tabs as well. Tabs that were already open keep the previous version until you reload them.

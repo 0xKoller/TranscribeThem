@@ -27,7 +27,7 @@ La primera ejecución descarga el modelo desde Hugging Face. AVFoundation decodi
 
 El servidor escucha solo en `127.0.0.1:8765` y rechaza pedidos de más de 64 MB. Para un build de desarrollo junto a la app instalada: `WA_COMPANION_PORT` y `WA_COMPANION_DATA_DIR`.
 
-- `GET /health`: estado, versión del bundle, modelo, estadísticas y `features` (`summarize`, `translate`).
+- `GET /health`: estado, versión del bundle, modelo, estadísticas, `features` (`summarize`, `translate`) y, si la app encontró una versión nueva que no omitiste, `update` (`version`, `url`).
 - `GET /v1/settings`, `POST /v1/settings`: ajustes compartidos.
 - `POST /v1/hello`: presencia de la extensión.
 - `POST /v1/jobs`: estadísticas de transcripción; incluye el texto solo si el historial local está habilitado.
@@ -37,7 +37,13 @@ El servidor escucha solo en `127.0.0.1:8765` y rechaza pedidos de más de 64 MB.
 
 El servidor solo escucha en `127.0.0.1`. Si el pedido trae `Origin`, tiene que ser la extensión TranscribeThem (`chrome-extension://bnmnjapomgkgljobkcalefbbnfcfjlmd`, más los IDs de `WA_COMPANION_EXTENSION_IDS`) o una página de `127.0.0.1`, `localhost` o `[::1]`, comparando el host exacto. Cualquier otro origen recibe 403.
 
-Ajustes → Actualizaciones consulta la última versión publicada en GitHub, solo al tocar Buscar ahora o con la búsqueda al abrir activada (apagada por defecto).
+Actualizaciones:
+
+- **Canal.** Solo busca el build cuyo `manifest.json` tiene `homepage_url` de GitHub. `scripts/package-companion.sh` lo copia al `Info.plist` como `TTUpdateRepo`. Sin esa clave (por ejemplo con `swift run`) la app nunca consulta. `WA_COMPANION_UPDATE_REPO=owner/repo` la fuerza para probar.
+- **Cuándo.** Una vez por día, encendido por defecto: al abrir, cada hora si pasaron 24 h y al despertar la Mac. Ajustes → Actualizaciones lo apaga y tiene Buscar ahora. Usa `ETag`.
+- **Aviso.** Banner en Inicio con las novedades, ítem en la barra de menú, una notificación por versión y Omitir esta versión.
+- **Instalar y reiniciar.** Descarga el DMG, lo compara con `SHA256SUMS.txt` y con el digest de GitHub, comprueba bundle ID, versión y firma, copia la app junto a la instalada y, al salir, la reemplaza y la vuelve a abrir. Si la app corre desde el DMG, desde App Translocation o sin permiso de escritura, ofrece solo Descargar.
+- **Extensión.** Ajustes → Extensión → Preparar la carpeta guarda la extensión en `~/Library/Application Support/WA Local Transcribe/Extension`. Se carga una vez en Chrome; después la app la actualiza y la extensión se recarga sola al ver un `manifest.json` más nuevo en disco.
 
 Se conserva la ruta local `~/Library/Application Support/WA Local Transcribe/` para compatibilidad con instalaciones previas. No se persisten las transcripciones en las estadísticas; el último texto puede permanecer en memoria durante la ejecución. Los archivos temporales de audio se eliminan al finalizar la transcripción.
 

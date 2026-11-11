@@ -11,6 +11,15 @@
       <p class="tag" data-i18n="popupTag"></p>
     </header>
 
+    <div id="update-box" class="update-card" role="status" hidden>
+      <p id="update-title" class="update-title"></p>
+      <p id="update-detail" class="update-detail"></p>
+      <p id="update-steps" class="update-detail muted"></p>
+      <button type="button" id="update-open" class="link-btn" data-i18n="updateOpen"></button>
+    </div>
+
+<p id="update-reloaded" class="update-reloaded" role="status" hidden></p>
+
     <div id="companion-box" class="companion-card">
       <div class="companion-title">
         <span id="companion-dot" class="dot"></span>
@@ -46,6 +55,8 @@
     <script src="settings.js"></script>
     <script src="companion-sync.js"></script>
     <script src="settings-ui.js"></script>
+    <script src="update-check.js"></script>
+    <script src="update-ui.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

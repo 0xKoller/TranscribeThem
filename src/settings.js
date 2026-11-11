@@ -11,6 +11,7 @@
     openAtLaunch: false,
     autoTranscribe: false,
     cacheTranscripts: true,
+    checkUpdates: true,
   };
 
   g.WA_SITES = [
@@ -129,6 +130,13 @@
       "openAtLaunch",
       "autoTranscribe",
       "cacheTranscripts",
+      "checkUpdates",
+      "updateLatest",
+      "updateCheckedAt",
+      "updateAttemptAt",
+      "appUpdate",
+      "appVersion",
+      "updatedFrom",
       "companionFeatures",
       "companionSettingsAt",
       "lastError",
@@ -159,6 +167,13 @@
       // Extension-only preferences: never synced with the Mac app.
       autoTranscribe: stored.autoTranscribe === true,
       cacheTranscripts: stored.cacheTranscripts !== false,
+      checkUpdates: stored.checkUpdates !== false,
+      updateLatest: stored.updateLatest && typeof stored.updateLatest === "object" ? stored.updateLatest : null,
+      updateCheckedAt: typeof stored.updateCheckedAt === "number" ? stored.updateCheckedAt : 0,
+      updateAttemptAt: typeof stored.updateAttemptAt === "number" ? stored.updateAttemptAt : 0,
+      appUpdate: stored.appUpdate && typeof stored.appUpdate === "object" ? stored.appUpdate : null,
+      appVersion: typeof stored.appVersion === "string" ? stored.appVersion : null,
+      updatedFrom: typeof stored.updatedFrom === "string" ? stored.updatedFrom : null,
       companionFeatures: g.waNormalizeFeatures(stored.companionFeatures),
       companionPort: typeof stored.companionPort === "number" ? stored.companionPort : 8765,
       debugMode: stored.debugMode === true,

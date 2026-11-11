@@ -127,7 +127,7 @@ public final class HTTPServer: @unchecked Sendable {
             let stats = service.stats.snapshot()
             let isReady = await transcriber.ready
             let features = OnDeviceTextActions.features
-            let respObj: [String: Any] = [
+            var respObj: [String: Any] = [
                 "ok": true,
                 "status": "ok",
                 "ready": isReady,
@@ -141,6 +141,10 @@ public final class HTTPServer: @unchecked Sendable {
                     "translate": features.translate,
                 ],
             ]
+            // A newer release the app is offering; the extension shows it too.
+            if let offer = service.updateOffer.current {
+                respObj["update"] = ["version": offer.version, "url": offer.pageURL.absoluteString]
+            }
             return json(respObj, status: 200, text: "OK", headers: corsHeaders)
         }
 

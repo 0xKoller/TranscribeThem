@@ -15,6 +15,8 @@ public struct ExtensionHello: Equatable, Sendable {
 public final class CompanionService: @unchecked Sendable {
     public let settings: SettingsStore
     public let stats: StatsStore
+    /// The update the app is offering, if any. GET /health passes it on.
+    public let updateOffer = UpdateOffer()
     public var onChange: (@Sendable () -> Void)?
     public var onOpen: (@Sendable () -> Void)?
 

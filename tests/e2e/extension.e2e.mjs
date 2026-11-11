@@ -16,6 +16,7 @@ const page = readFileSync(join(root, "tests", "e2e", "whatsapp.html"), "utf8");
 // Fake Mac app: answers like the real one and records what it got.
 const received = [];
 let hold = null; // when set, /transcribe waits until released
+let healthExtra = {}; // extra fields in GET /health
 const app = createServer((req, res) => {
   const chunks = [];
   req.on("data", (c) => chunks.push(c));
@@ -25,7 +26,7 @@ const app = createServer((req, res) => {
       res.writeHead(status, { "Content-Type": "application/json", "Access-Control-Allow-Origin": req.headers.origin || "*" });
       res.end(JSON.stringify(obj));
     };
-    if (req.url === "/health") return json(200, { ok: true, ready: true, engine: "parakeet", features: {} });
+    if (req.url === "/health") return json(200, { ok: true, ready: true, engine: "parakeet", features: {}, ...healthExtra });
     if (req.url === "/v1/settings") return json(404, { ok: false });
     if (req.url === "/transcribe") {
       received.push({ headers: req.headers, body });
@@ -133,9 +134,22 @@ try {
 
   // 5. The popup offers the button on a WhatsApp tab.
   const popup = await context.newPage();
+  const popupErrors = [];
+  popup.on("pageerror", (e) => popupErrors.push(String(e)));
   await popup.goto(`chrome-extension://${PINNED_ID}/src/popup.html`);
   await popup.waitForSelector("#transcribe-visible", { state: "attached" });
   assert.ok((await popup.locator("#transcribe-visible").innerText()).length > 5);
+
+  // 6. An update the app found shows in the popup, with the badge.
+  assert.equal(await popup.locator("#update-box").isHidden(), true, "no notice while up to date");
+  healthExtra = { version: "99.0.0", update: { version: "99.1.0", url: "https://github.com/0xKoller/TranscribeThem/releases/tag/v99.1.0" } };
+  // The service worker cannot message itself; call its health check directly.
+  await worker.evaluate(() => checkCompanion());
+  await popup.waitForSelector("#update-box:not([hidden])", { timeout: 5000 });
+  assert.match(await popup.locator("#update-title").innerText(), /99\.1\.0/);
+  assert.equal(await worker.evaluate(() => chrome.action.getBadgeText({})), "↑");
+  healthExtra = {};
+  assert.deepEqual(popupErrors, [], "no errors in the popup");
 
   console.log("extension.e2e.mjs ok");
 } catch (err) {

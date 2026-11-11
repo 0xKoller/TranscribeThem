@@ -385,3 +385,49 @@ input {
 .visible-status.muted {
   color: var(--muted);
 }
+
+/* Update notice, popup and Options. */
+.update-card {
+  background: var(--card);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.update-card[hidden] {
+  display: none;
+}
+
+.update-title {
+  margin: 0;
+  font-weight: 650;
+  font-size: 12.5px;
+  color: var(--accent);
+}
+
+.update-detail {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+}
+
+.update-detail.muted {
+  color: var(--muted);
+}
+
+.update-card .link-btn {
+  margin-top: 6px;
+}
+
+.update-reloaded {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--success);
+  font-size: 11.5px;
+}
+
+.update-reloaded[hidden] {
+  display: none;
+}

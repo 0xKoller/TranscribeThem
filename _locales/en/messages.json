@@ -579,5 +579,87 @@
   },
   "shortcutBody": {
     "message": "Transcribes the newest voice note on screen. Change it at chrome://extensions/shortcuts."
+  },
+  "optUpdates": {
+    "message": "Updates"
+  },
+  "optCheckUpdates": {
+    "message": "Check for updates once a day"
+  },
+  "optCheckUpdatesHint": {
+    "message": "Looks up the latest version published on GitHub. It sends none of your data."
+  },
+  "optCheckNow": {
+    "message": "Check now"
+  },
+  "updateChecking": {
+    "message": "Checking…"
+  },
+  "updateUpToDate": {
+    "message": "You are up to date."
+  },
+  "updateCheckFailed": {
+    "message": "Could not check. Check your connection."
+  },
+  "updateLastChecked": {
+    "message": "Last checked: $WHEN$",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      }
+    }
+  },
+  "updateByStore": {
+    "message": "Chrome updates this extension on its own, from the Chrome Web Store."
+  },
+  "updateNoChannel": {
+    "message": "This copy of the extension does not check for updates."
+  },
+  "updateAvailable": {
+    "message": "A new version is available: $VERSION$",
+    "placeholders": {
+      "version": {
+        "content": "$1"
+      }
+    }
+  },
+  "updateYouHave": {
+    "message": "You have v$VERSION$.",
+    "placeholders": {
+      "version": {
+        "content": "$1"
+      }
+    }
+  },
+  "updateExtensionOld": {
+    "message": "The extension is out of date"
+  },
+  "updateExtensionBehind": {
+    "message": "The app is on v$APP$ and this extension on v$EXT$.",
+    "placeholders": {
+      "app": {
+        "content": "$1"
+      },
+      "ext": {
+        "content": "$2"
+      }
+    }
+  },
+  "updateSteps": {
+    "message": "Download the new ZIP, replace the extension folder, click Reload in chrome://extensions, and reload WhatsApp Web and X."
+  },
+  "updateStepsStore": {
+    "message": "Chrome updates it on its own. To skip the wait, click Update in chrome://extensions with Developer mode on."
+  },
+  "updateOpen": {
+    "message": "See what is new and download"
+  },
+  "updateReloaded": {
+    "message": "Updated to v$VERSION$. Reload WhatsApp Web and X to use it.",
+    "placeholders": {
+      "version": {
+        "content": "$1"
+      }
+    }
   }
 }

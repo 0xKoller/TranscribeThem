@@ -7,7 +7,7 @@ import AppKit
 @MainActor
 @Observable
 final class AppModel {
-    private let service: CompanionService
+    let service: CompanionService
 
     var settings: CompanionSettings
     var stats: StatsSnapshot
@@ -24,37 +24,31 @@ final class AppModel {
     var historyError: String?
 
     enum UpdateState: Equatable {
-        case idle, checking, upToDate(String), available(UpdateCheck.Release), failed
+        case idle, checking, upToDate(String), available(UpdateCheck.Release), failed, unavailable
     }
+    /// Result of the last check, shown in Settings.
     var update: UpdateState = .idle
-    var checkUpdatesAtLaunch = UserDefaults.standard.bool(forKey: "checkUpdatesAtLaunch") {
-        didSet { UserDefaults.standard.set(checkUpdatesAtLaunch, forKey: "checkUpdatesAtLaunch") }
-    }
-
-    /// One request to the public GitHub releases API. Off unless the user asks
-    /// for it or turns on the launch check.
-    func checkForUpdates() {
-        guard update != .checking else { return }
-        update = .checking
-        let current = BundleVersion.current()
-        var request = URLRequest(url: UpdateCheck.latestReleaseURL, timeoutInterval: 15)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.setValue("TranscribeThem", forHTTPHeaderField: "User-Agent")
-        Task {
-            let next: UpdateState
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                if (response as? HTTPURLResponse)?.statusCode == 200, let release = UpdateCheck.parseLatest(data) {
-                    next = UpdateCheck.isNewer(release.version, than: current) ? .available(release) : .upToDate(current)
-                } else {
-                    next = .failed
-                }
-            } catch {
-                next = .failed
-            }
-            await MainActor.run { self.update = next }
+    /// The newest release seen, whether or not it is offered.
+    var latestRelease: UpdateCheck.Release?
+    var lastUpdateCheck = UserDefaults.standard.object(forKey: UpdateDefaults.lastCheck) as? Date
+    var skippedVersion = UserDefaults.standard.string(forKey: UpdateDefaults.skipped)
+    var autoCheckUpdates = UserDefaults.standard.object(forKey: UpdateDefaults.auto) as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(autoCheckUpdates, forKey: UpdateDefaults.auto)
+            if autoCheckUpdates { checkUpdatesIfDue() }
         }
     }
+    /// Where this build looks for releases. Nil for private and development
+    /// builds, which never check.
+    let updateRepo = UpdateCheck.repo(
+        infoValue: Bundle.main.object(forInfoDictionaryKey: UpdateCheck.repoInfoKey),
+        environment: ProcessInfo.processInfo.environment
+    )
+    var installState: InstallState = .idle
+    /// Version in the extension folder the app keeps up to date, if set up.
+    var managedExtensionVersion = ManagedExtension.version
+    var extensionInstalling = false
+    var extensionInstallError: String?
 
     var nativeSelection = NativeModel(rawValue: UserDefaults.standard.string(forKey: "nativeModel") ?? "v3") ?? .v3
     var nativeLocalPath = UserDefaults.standard.string(forKey: "nativeModelPath") ?? ""
@@ -106,6 +100,7 @@ final class AppModel {
         settings = service.settings.current
         stats = service.stats.snapshot()
         loginDetail = LoginItem.detail
+        restoreCachedRelease()
     }
 
     var extensionConnected: Bool {

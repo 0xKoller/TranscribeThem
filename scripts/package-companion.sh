@@ -33,6 +33,16 @@ cp "$COMPANION_DIR/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP_BUNDLE/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP_BUNDLE/Contents/Info.plist"
 echo "Stamped companion version $VERSION"
+# The update channel follows manifest.json "homepage_url": only a build whose
+# manifest points at a GitHub repository looks for updates there. Private and
+# development builds have no homepage_url and never check.
+UPDATE_REPO="$(node -e "const m = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')); const r = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+?)\/?$/.exec(m.homepage_url || ''); process.stdout.write(r ? r[1] : '')" "$DIR/manifest.json")"
+if [[ -n "$UPDATE_REPO" ]]; then
+  /usr/libexec/PlistBuddy -c "Add :TTUpdateRepo string $UPDATE_REPO" "$APP_BUNDLE/Contents/Info.plist"
+  echo "Update channel: github.com/$UPDATE_REPO"
+else
+  echo "No update channel (manifest.json has no GitHub homepage_url)"
+fi
 cp -R "$COMPANION_DIR/Resources/en.lproj" "$COMPANION_DIR/Resources/es.lproj" "$APP_BUNDLE/Contents/Resources/"
 cp "$DIR/icons/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/"
 cp "$DIR/icons/MenuBarTemplate.png" "$DIR/icons/MenuBarTemplate@2x.png" "$APP_BUNDLE/Contents/Resources/"

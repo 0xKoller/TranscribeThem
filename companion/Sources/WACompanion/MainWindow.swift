@@ -127,6 +127,17 @@ private struct CompanionContent: View {
                 Spacer(minLength: 0)
             }
 
+            if let offer = model.offeredRelease {
+                UpdateBanner(model: model, release: offer)
+            }
+
+            if model.extensionIsBehind, let version = model.extensionVersion {
+                Label(LF("La extensión está en la v%@ y la app en la v%@. Actualizá la extensión desde la misma versión.", version, model.currentVersion), systemImage: "exclamationmark.triangle")
+                    .font(.callout)
+                    .foregroundStyle(palette.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Divider()
 
             todayStrip
@@ -453,6 +464,76 @@ private struct CompanionContent: View {
             AxisMarks(position: .leading)
         }
         .frame(height: height)
+    }
+}
+
+private struct UpdateBanner: View {
+    @Bindable var model: AppModel
+    let release: UpdateCheck.Release
+    @Environment(\.colorScheme) private var colorScheme
+    private var palette: VoicePalette { VoicePalette(colorScheme) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(LF("Hay una versión nueva: %@", release.version), systemImage: "arrow.down.circle.fill")
+                .font(.headline)
+            Text(LF("Tenés la v%@.", model.currentVersion))
+                .font(.callout)
+                .foregroundStyle(palette.secondary)
+            let summary = UpdateCheck.summary(release.notes)
+            if !summary.isEmpty {
+                Text(summary)
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(6)
+            }
+            HStack(spacing: 10) {
+                if canInstall {
+                    Button(L("Instalar y reiniciar")) { model.installOfferedUpdate() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.installing)
+                    Button(L("Ver novedades")) { model.openReleasePage() }
+                        .buttonStyle(.bordered)
+                } else {
+                    Button(L("Descargar")) { model.openReleasePage() }
+                        .buttonStyle(.borderedProminent)
+                }
+                Button(L("Omitir esta versión")) { model.skipOfferedVersion() }
+                    .buttonStyle(.borderless)
+                    .disabled(model.installing)
+            }
+            .padding(.top, 4)
+            installStatus
+            if !canInstall, let blocker = model.installBlocker, release.dmg != nil {
+                Text(blocker).font(.caption).foregroundStyle(palette.secondary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(palette.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .contain)
+    }
+
+    private var canInstall: Bool {
+        model.installBlocker == nil && release.dmg != nil && release.checksums != nil
+    }
+
+    @ViewBuilder
+    private var installStatus: some View {
+        switch model.installState {
+        case .idle:
+            EmptyView()
+        case .downloading(let fraction):
+            if let fraction {
+                ProgressView(value: fraction) { Text(L("Descargando…")).font(.caption) }
+            } else {
+                ProgressView { Text(L("Descargando…")).font(.caption) }
+            }
+        case .verifying, .installing:
+            ProgressView { Text(L("Instalando. La app se va a reiniciar…")).font(.caption) }
+        case .failed(let message):
+            Text(message).font(.caption).foregroundStyle(.red)
+        }
     }
 }
 

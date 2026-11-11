@@ -126,7 +126,13 @@ hdiutil convert "$RAW" -format UDZO -ov -o "$DMG"
 rm -f "$RAW"
 rm -rf "$DIST/ext-root" "$DIST/dmg-root"
 
+# The app's "Install and Restart" refuses any file not listed here, so this
+# file must be uploaded with every release.
+SUMS="$DIST/SHA256SUMS.txt"
+(cd "$DIST" && shasum -a 256 "$(basename "$DMG")" "$(basename "$ZIP")" > "$SUMS")
+
 echo "Release files:"
 echo "$DMG"
 echo "$ZIP"
-ls -lh "$DMG" "$ZIP"
+echo "$SUMS"
+ls -lh "$DMG" "$ZIP" "$SUMS"
